@@ -1,6 +1,16 @@
 import { z } from 'zod';
 
-// Basic API Response Schema
+// Export all schemas and types from sub-modules
+export * from './api';
+export * from './entities';
+export * from './service-config-types';
+export * from './order-types';
+
+// Re-export zod for convenience
+export { z };
+
+// Legacy ApiResponse exports for backward compatibility
+// (These are now also available from './api')
 export const ApiResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
@@ -13,11 +23,4 @@ export type ApiResponse<T = unknown> = {
   message?: string;
   data?: T;
   error?: string;
-};
-
-// Export all schemas and types
-export * from './api';
-export * from './entities';
-
-// Re-export zod for convenience
-export { z }; 
+}; 
