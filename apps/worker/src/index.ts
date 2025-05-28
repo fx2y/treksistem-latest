@@ -11,6 +11,7 @@ import mitraRoutes from './routes/mitra';
 import mitraOrderRoutes from './routes/mitra.orders';
 import publicServiceRoutes from './routes/public.services';
 import orderPlacementRoutes from './routes/orders.placement';
+import driverOrderRoutes from './routes/driver.orders';
 import { calculateHaversineDistance, calculateDistance, type Point } from './utils/geo';
 import type { AppContext } from './types';
 
@@ -147,6 +148,9 @@ app.route('/api/orders', orderPlacementRoutes);
 // Mitra Admin Routes (Protected by Cloudflare Access)
 app.route('/api/mitra', mitraRoutes);
 app.route('/api/mitra/orders', mitraOrderRoutes);
+
+// Driver Routes (Protected by unguessable driverId in path)
+app.route('/api/driver/:driverId/orders', driverOrderRoutes);
 
 // --- Test Endpoints for Development ---
 
