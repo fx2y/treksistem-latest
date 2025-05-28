@@ -3,9 +3,10 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
-import { mitras, drivers } from '@treksistem/db-schema';
+import { mitras } from '@treksistem/db-schema';
 import { cfAccessAuth, mitraAuth } from '../middleware/auth';
 import mitraServiceRoutes from './mitra.services';
+import mitraDriverRoutes from './mitra.drivers';
 import type { AppContext } from '../types';
 
 const mitraRoutes = new Hono<AppContext>();
@@ -15,6 +16,9 @@ mitraRoutes.use('*', cfAccessAuth);
 
 // Mount service routes
 mitraRoutes.route('/services', mitraServiceRoutes);
+
+// Mount driver routes
+mitraRoutes.route('/drivers', mitraDriverRoutes);
 
 // === Profile Management Routes (No Mitra Required) ===
 
@@ -59,7 +63,7 @@ mitraRoutes.get('/profile', async (c) => {
     });
   } catch (error) {
     console.error('[Mitra Profile] Database error:', error);
-    throw new Error(`Failed to fetch Mitra profile: ${error?.message || 'Unknown error'}`);
+    throw new Error(`Failed to fetch Mitra profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 });
 
@@ -191,48 +195,6 @@ mitraRoutes.put('/profile',
 );
 
 // === Routes Requiring Existing Mitra Profile ===
-
-/**
- * GET /api/mitra/drivers
- * Get all drivers for the current Mitra
- */
-mitraRoutes.get('/drivers', mitraAuth, async (c) => {
-  const mitraId = c.get('currentMitraId')!;
-  
-  try {
-    const db = c.get('db');
-    
-    const driverRecords = await db
-      .select()
-      .from(drivers)
-      .where(eq(drivers.mitraId, mitraId));
-
-    return c.json({
-      success: true,
-      data: {
-        drivers: driverRecords.map(driver => ({
-          id: driver.id,
-          identifier: driver.identifier,
-          name: driver.name,
-          configJson: driver.configJson,
-          isActive: driver.isActive,
-          createdAt: driver.createdAt,
-          updatedAt: driver.updatedAt,
-        })),
-        total: driverRecords.length,
-      },
-    });
-  } catch (error) {
-    console.error('[Mitra Drivers] Database error:', error);
-    return c.json({
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Failed to retrieve drivers.',
-      },
-    }, 500);
-  }
-});
 
 /**
  * GET /api/mitra/auth/test
