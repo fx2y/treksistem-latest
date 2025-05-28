@@ -3,14 +3,18 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
-import { mitras, services, drivers } from '@treksistem/db-schema';
+import { mitras, drivers } from '@treksistem/db-schema';
 import { cfAccessAuth, mitraAuth } from '../middleware/auth';
+import mitraServiceRoutes from './mitra.services';
 import type { AppContext } from '../types';
 
 const mitraRoutes = new Hono<AppContext>();
 
 // Apply CF Access authentication to all routes
 mitraRoutes.use('*', cfAccessAuth);
+
+// Mount service routes
+mitraRoutes.route('/services', mitraServiceRoutes);
 
 // === Profile Management Routes (No Mitra Required) ===
 
@@ -187,48 +191,6 @@ mitraRoutes.put('/profile',
 );
 
 // === Routes Requiring Existing Mitra Profile ===
-
-/**
- * GET /api/mitra/services
- * Get all services for the current Mitra
- */
-mitraRoutes.get('/services', mitraAuth, async (c) => {
-  const mitraId = c.get('currentMitraId')!;
-  
-  try {
-    const db = c.get('db');
-    
-    const serviceRecords = await db
-      .select()
-      .from(services)
-      .where(eq(services.mitraId, mitraId));
-
-    return c.json({
-      success: true,
-      data: {
-        services: serviceRecords.map(service => ({
-          id: service.id,
-          name: service.name,
-          serviceTypeKey: service.serviceTypeKey,
-          configJson: service.configJson,
-          isActive: service.isActive,
-          createdAt: service.createdAt,
-          updatedAt: service.updatedAt,
-        })),
-        total: serviceRecords.length,
-      },
-    });
-  } catch (error) {
-    console.error('[Mitra Services] Database error:', error);
-    return c.json({
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Failed to retrieve services.',
-      },
-    }, 500);
-  }
-});
 
 /**
  * GET /api/mitra/drivers
