@@ -17,8 +17,9 @@
 
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { eq, and } from 'drizzle-orm';
-import { createId } from '@paralleldrive/cuid2';
+import { createId, isCuid } from '@paralleldrive/cuid2';
 import { services, mitras, orders, orderEvents } from '@treksistem/db-schema';
 import { 
   OrderPlacementPayloadSchema, 
@@ -444,6 +445,225 @@ orderPlacementRoutes.post(
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to calculate cost estimate',
+        },
+      }, 500);
+    }
+  }
+);
+
+/**
+ * GET /:orderId/track
+ * Public order tracking endpoint for end-users
+ * 
+ * Returns sanitized order information including:
+ * - Order status and basic details
+ * - Service information
+ * - Driver information (sanitized when assigned)
+ * - Recent order events
+ * 
+ * No authentication required - uses order ID as access token
+ */
+orderPlacementRoutes.get(
+  '/:orderId/track',
+  zValidator('param', z.object({
+    orderId: z.string().min(1, "Order ID is required"),
+  })),
+  async (c) => {
+    const { orderId } = c.req.valid('param');
+    const db = c.get('db');
+
+    // Validate orderId format (must be a valid CUID)
+    if (!isCuid(orderId)) {
+      return c.json({
+        success: false,
+        error: {
+          code: 'INVALID_ORDER_ID',
+          message: 'Invalid order ID format.',
+        },
+      }, 400);
+    }
+
+    try {
+      console.log(`[Order Tracking] Fetching tracking details for order: ${orderId}`);
+
+      // Query order with related service, driver, and events
+      const orderTrackingDetails = await db.query.orders.findFirst({
+        where: eq(orders.id, orderId),
+        columns: {
+          id: true,
+          status: true,
+          estimatedCost: true,
+          finalCost: true,
+          createdAt: true,
+          updatedAt: true,
+          scheduledAt: true,
+          // Note: detailsJson contains full addresses but we'll extract only safe parts
+          detailsJson: true,
+        },
+        with: {
+          service: {
+            columns: {
+              name: true,
+              serviceTypeKey: true,
+            },
+          },
+          driver: {
+            columns: {
+              name: true,
+              configJson: true,
+            },
+          },
+          events: {
+            columns: {
+              timestamp: true,
+              eventType: true,
+              dataJson: true,
+              actorType: true,
+            },
+            orderBy: (events, { desc }) => [desc(events.timestamp)],
+            limit: 20, // Limit number of events for performance
+          },
+        },
+      });
+
+      if (!orderTrackingDetails) {
+        return c.json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: 'Order not found.',
+          },
+        }, 404);
+      }
+
+      // Sanitize driver information
+      let sanitizedDriverInfo = undefined;
+      if (orderTrackingDetails.driver) {
+        let vehicleInfo = 'Unknown';
+        
+        // Extract safe vehicle information from driver config
+        if (orderTrackingDetails.driver.configJson) {
+          try {
+            const driverConfig = orderTrackingDetails.driver.configJson as any;
+            if (driverConfig.vehicle?.type) {
+              vehicleInfo = driverConfig.vehicle.type;
+            } else if (driverConfig.vehicleType) {
+              vehicleInfo = driverConfig.vehicleType;
+            }
+          } catch (configError) {
+            console.warn(`[Order Tracking] Failed to parse driver config for order ${orderId}:`, configError);
+          }
+        }
+
+        sanitizedDriverInfo = {
+          name: orderTrackingDetails.driver.name || 'Driver',
+          vehicleInfo,
+        };
+      }
+
+      // Extract safe address information from detailsJson
+      let pickupAddress = 'Pickup location';
+      let dropoffAddress = 'Dropoff location';
+      
+      try {
+        const orderDetails = orderTrackingDetails.detailsJson as any;
+        if (orderDetails.pickupAddress?.addressText) {
+          pickupAddress = orderDetails.pickupAddress.addressText;
+        }
+        if (orderDetails.dropoffAddress?.addressText) {
+          dropoffAddress = orderDetails.dropoffAddress.addressText;
+        }
+      } catch (detailsError) {
+        console.warn(`[Order Tracking] Failed to extract address details for order ${orderId}:`, detailsError);
+      }
+
+      // Process and sanitize order events
+      const sanitizedEvents = orderTrackingDetails.events.map(event => {
+        const sanitizedEvent: any = {
+          timestamp: event.timestamp,
+          eventType: event.eventType,
+        };
+
+        // Add event-specific data if present
+        if (event.dataJson) {
+          try {
+            const eventData = event.dataJson as any;
+            
+            // For photo events, provide R2 URL if available
+            if (event.eventType === 'PHOTO_UPLOADED' && eventData.photoR2Key) {
+              // Construct public R2 URL - assumes public bucket configuration
+              // Note: This will need to be adjusted based on actual R2 bucket setup
+              sanitizedEvent.photoUrl = eventData.photoR2Key; // Store R2 key for now
+              if (eventData.photoType) {
+                sanitizedEvent.photoType = eventData.photoType;
+              }
+              if (eventData.caption) {
+                sanitizedEvent.caption = eventData.caption;
+              }
+            }
+            
+            // For status updates, include status information
+            if (event.eventType === 'STATUS_UPDATE') {
+              if (eventData.newStatus) {
+                sanitizedEvent.newStatus = eventData.newStatus;
+              }
+              if (eventData.reason) {
+                sanitizedEvent.reason = eventData.reason;
+              }
+            }
+            
+            // For notes, include note content
+            if (event.eventType === 'NOTE_ADDED' && eventData.note) {
+              sanitizedEvent.note = eventData.note;
+              sanitizedEvent.author = eventData.author || 'Unknown';
+            }
+          } catch (eventDataError) {
+            console.warn(`[Order Tracking] Failed to parse event data for order ${orderId}, event ${event.eventType}:`, eventDataError);
+          }
+        }
+
+        return sanitizedEvent;
+      });
+
+      // Calculate estimated delivery time if possible
+      let estimatedDeliveryTime = undefined;
+      if (orderTrackingDetails.scheduledAt) {
+        // For scheduled orders, use scheduled time as estimated pickup
+        // Delivery time could be calculated based on service configuration
+        estimatedDeliveryTime = orderTrackingDetails.scheduledAt.getTime();
+      }
+
+      // Prepare response data
+      const responseData = {
+        orderId,
+        status: orderTrackingDetails.status,
+        serviceName: orderTrackingDetails.service.name,
+        pickupAddress,
+        dropoffAddress,
+        ...(sanitizedDriverInfo && { driverInfo: sanitizedDriverInfo }),
+        orderEvents: sanitizedEvents,
+        estimatedCost: orderTrackingDetails.estimatedCost,
+        ...(orderTrackingDetails.finalCost && { finalCost: orderTrackingDetails.finalCost }),
+        createdAt: orderTrackingDetails.createdAt.getTime(),
+        ...(orderTrackingDetails.updatedAt && { updatedAt: orderTrackingDetails.updatedAt.getTime() }),
+        ...(estimatedDeliveryTime && { estimatedDeliveryTime }),
+      };
+
+      console.log(`[Order Tracking] Successfully retrieved tracking details for order: ${orderId}`);
+
+      return c.json({
+        success: true,
+        data: responseData,
+      });
+
+    } catch (error) {
+      console.error('[Order Tracking] Unexpected error:', error);
+      
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to retrieve order tracking information.',
         },
       }, 500);
     }
