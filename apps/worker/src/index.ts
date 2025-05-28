@@ -8,6 +8,7 @@ import { getDrizzleClient } from '@treksistem/db-schema';
 import { sql } from 'drizzle-orm';
 import { cfAccessAuth } from './middleware/auth';
 import mitraRoutes from './routes/mitra';
+import mitraOrderRoutes from './routes/mitra.orders';
 import type { AppContext } from './types';
 
 const app = new Hono<AppContext>();
@@ -138,6 +139,7 @@ app.get('/api/health', (c) => {
 
 // Mitra Admin Routes (Protected by Cloudflare Access)
 app.route('/api/mitra', mitraRoutes);
+app.route('/api/mitra/orders', mitraOrderRoutes);
 
 // --- Test Endpoints for Development ---
 
