@@ -9,6 +9,9 @@ import { sql } from 'drizzle-orm';
 import { cfAccessAuth } from './middleware/auth';
 import mitraRoutes from './routes/mitra';
 import mitraOrderRoutes from './routes/mitra.orders';
+import publicServiceRoutes from './routes/public.services';
+import orderPlacementRoutes from './routes/orders.placement';
+import { calculateHaversineDistance, calculateDistance, type Point } from './utils/geo';
 import type { AppContext } from './types';
 
 const app = new Hono<AppContext>();
@@ -137,6 +140,10 @@ app.get('/api/health', (c) => {
 
 // --- Route Modules ---
 
+// Public Routes (No authentication required)
+app.route('/api/public/services', publicServiceRoutes);
+app.route('/api/orders', orderPlacementRoutes);
+
 // Mitra Admin Routes (Protected by Cloudflare Access)
 app.route('/api/mitra', mitraRoutes);
 app.route('/api/mitra/orders', mitraOrderRoutes);
@@ -215,11 +222,12 @@ app.get('/api/test/db', async (c) => {
   }
 });
 
+// Note: Geo distance calculation test endpoints were removed after successful verification
+// The geo utility is available via import: { calculateHaversineDistance, calculateDistance } from './utils/geo'
+
 // --- Future Route Modules (to be implemented in subsequent tasks) ---
-// import publicRoutes from './routes/public';
 // import driverRoutes from './routes/driver';
 // 
-// app.route('/api/public', publicRoutes);
 // app.route('/api/driver', driverRoutes);
 
 export default app; 
