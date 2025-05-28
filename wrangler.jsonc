@@ -11,6 +11,13 @@
       "migrations_dir": "packages/db-schema/migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "TREKSISTEM_R2",
+      "bucket_name": "treksistem-proofs",
+      "preview_bucket_name": "treksistem-proofs-preview"
+    }
+  ],
   "vars": {
     "WORKER_ENV": "development"
   },

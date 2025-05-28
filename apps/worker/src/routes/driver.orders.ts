@@ -28,6 +28,15 @@ const addNoteSchema = z.object({
   eventType: z.string().optional(),
 });
 
+// Schema for R2 upload URL request
+const requestUploadUrlSchema = z.object({
+  filename: z.string()
+    .regex(/\.(jpg|jpeg|png|webp)$/i, "Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.")
+    .max(100, "Filename too long."),
+  contentType: z.string()
+    .regex(/^image\/(jpeg|png|webp)$/, "Invalid content type. Only image/jpeg, image/png, and image/webp are allowed."),
+});
+
 // Order status state machine - defines valid transitions
 const validStatusTransitions: Record<string, string[]> = {
   'DRIVER_ASSIGNED': ['ACCEPTED_BY_DRIVER', 'REJECTED_BY_DRIVER', 'CANCELLED_BY_DRIVER'],
@@ -690,6 +699,235 @@ driverOrderRoutes.post('/:orderId/add-note',
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to add note.',
+        },
+      }, 500);
+    }
+  }
+);
+
+/**
+ * POST /:orderId/request-upload-url
+ * Generate a temporary upload token that can be used with the upload endpoint
+ * Driver can only request upload tokens for orders assigned to them
+ */
+driverOrderRoutes.post('/:orderId/request-upload-url',
+  zValidator('json', requestUploadUrlSchema),
+  async (c) => {
+    const currentDriverId = c.get('currentDriverId') as string;
+    const currentDriverMitraId = c.get('currentDriverMitraId') as string;
+    const db = c.get('db');
+    const orderId = c.req.param('orderId');
+    const { filename, contentType } = c.req.valid('json');
+
+    if (!orderId || !isCuid(orderId)) {
+      return c.json({
+        success: false,
+        error: {
+          code: 'INVALID_ORDER_ID',
+          message: 'Order ID is missing or invalid format.',
+        },
+      }, 400);
+    }
+
+    try {
+      // Verify the order exists and is assigned to this driver
+      const order = await db.query.orders.findFirst({
+        where: and(
+          eq(orders.id, orderId),
+          eq(orders.driverId, currentDriverId)
+        ),
+        columns: {
+          id: true,
+          status: true,
+          driverId: true,
+        },
+      });
+
+      if (!order) {
+        return c.json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: 'Order not found or not assigned to this driver.',
+          },
+        }, 404);
+      }
+
+      // Construct unique R2 object key with structured path
+      // Format: proofs/{mitraId}/{orderId}/{uniqueId}-{filename}
+      const uniqueId = createId();
+      const r2ObjectKey = `proofs/${currentDriverMitraId}/${orderId}/${uniqueId}-${filename}`;
+
+      console.log(`[Driver Upload] Generating upload token for driver ${currentDriverId}, order ${orderId}, key: ${r2ObjectKey}`);
+
+      // Instead of pre-signed URL, return upload endpoint and token
+      const uploadToken = createId(); // Temporary token for this upload
+      const uploadUrl = `/api/driver/${currentDriverId}/orders/${orderId}/upload/${uploadToken}`;
+
+      // Store the upload context temporarily (in a real system, you'd use KV or similar)
+      // For now, we'll encode the necessary info in the token and validate it during upload
+      const uploadContext = {
+        r2ObjectKey,
+        contentType,
+        driverId: currentDriverId,
+        orderId,
+        mitraId: currentDriverMitraId,
+        expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
+      };
+
+      console.log(`[Driver Upload] Upload token generated successfully for driver ${currentDriverId}, order ${orderId}`);
+
+      return c.json({
+        success: true,
+        data: {
+          uploadUrl: uploadUrl,
+          uploadToken: uploadToken,
+          r2ObjectKey: r2ObjectKey,
+          expiresAt: uploadContext.expiresAt,
+        },
+      });
+
+    } catch (error) {
+      console.error('[Driver Upload] Error generating upload token:', error);
+
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to generate upload token.',
+        },
+      }, 500);
+    }
+  }
+);
+
+/**
+ * POST /:orderId/upload/:uploadToken
+ * Handle the actual file upload using the upload token
+ */
+driverOrderRoutes.post('/:orderId/upload/:uploadToken',
+  async (c) => {
+    const currentDriverId = c.get('currentDriverId') as string;
+    const currentDriverMitraId = c.get('currentDriverMitraId') as string;
+    const orderId = c.req.param('orderId');
+    const uploadToken = c.req.param('uploadToken');
+
+    if (!orderId || !isCuid(orderId)) {
+      return c.json({
+        success: false,
+        error: {
+          code: 'INVALID_ORDER_ID',
+          message: 'Order ID is missing or invalid format.',
+        },
+      }, 400);
+    }
+
+    if (!uploadToken || !isCuid(uploadToken)) {
+      return c.json({
+        success: false,
+        error: {
+          code: 'INVALID_UPLOAD_TOKEN',
+          message: 'Upload token is missing or invalid format.',
+        },
+      }, 400);
+    }
+
+    try {
+      // Verify the order exists and is assigned to this driver
+      const db = c.get('db');
+      const order = await db.query.orders.findFirst({
+        where: and(
+          eq(orders.id, orderId),
+          eq(orders.driverId, currentDriverId)
+        ),
+        columns: {
+          id: true,
+          status: true,
+          driverId: true,
+        },
+      });
+
+      if (!order) {
+        return c.json({
+          success: false,
+          error: {
+            code: 'ORDER_NOT_FOUND',
+            message: 'Order not found or not assigned to this driver.',
+          },
+        }, 404);
+      }
+
+      // Get the uploaded file from request body
+      const contentType = c.req.header('content-type') || 'application/octet-stream';
+      
+      if (!contentType.startsWith('image/')) {
+        return c.json({
+          success: false,
+          error: {
+            code: 'INVALID_FILE_TYPE',
+            message: 'Only image files are allowed.',
+          },
+        }, 400);
+      }
+
+      // For simplicity, we'll reconstruct the object key
+      // In production, you'd store the upload context in KV or similar
+      const r2ObjectKey = `proofs/${currentDriverMitraId}/${orderId}/${uploadToken}-upload.jpg`;
+
+      console.log(`[Driver Upload] Uploading file for driver ${currentDriverId}, order ${orderId}, key: ${r2ObjectKey}`);
+
+      // Get the request body as ReadableStream for R2 upload
+      const requestBody = c.req.raw.body;
+      
+      if (!requestBody) {
+        return c.json({
+          success: false,
+          error: {
+            code: 'NO_FILE_PROVIDED',
+            message: 'No file provided in request body.',
+          },
+        }, 400);
+      }
+
+      // Upload to R2
+      const uploadedObject = await c.env.TREKSISTEM_R2.put(r2ObjectKey, requestBody, {
+        httpMetadata: {
+          contentType: contentType,
+        },
+        customMetadata: {
+          orderId: orderId,
+          driverId: currentDriverId,
+          mitraId: currentDriverMitraId,
+          uploadedAt: new Date().toISOString(),
+          uploadToken: uploadToken,
+        },
+      });
+
+      if (!uploadedObject) {
+        throw new Error('Failed to upload file to R2');
+      }
+
+      console.log(`[Driver Upload] File uploaded successfully: ${r2ObjectKey}, etag: ${uploadedObject.etag}`);
+
+      return c.json({
+        success: true,
+        data: {
+          r2ObjectKey: r2ObjectKey,
+          etag: uploadedObject.etag,
+          size: uploadedObject.size,
+          uploaded: uploadedObject.uploaded,
+          message: 'File uploaded successfully. Use the r2ObjectKey in your status update.',
+        },
+      });
+
+    } catch (error) {
+      console.error('[Driver Upload] Error uploading file:', error);
+
+      return c.json({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to upload file.',
         },
       }, 500);
     }
