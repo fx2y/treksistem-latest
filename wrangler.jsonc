@@ -7,7 +7,8 @@
     {
       "binding": "TREKSISTEM_DB",
       "database_name": "treksistem-d1-database",
-      "database_id": "9268c66b-1d66-4758-bee2-359cb7bb70d7"
+      "database_id": "9268c66b-1d66-4758-bee2-359cb7bb70d7",
+      "migrations_dir": "packages/db-schema/migrations"
     }
   ],
   "vars": {
