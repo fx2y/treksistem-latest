@@ -4,25 +4,11 @@ import { prettyJSON } from 'hono/pretty-json';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { createId } from '@paralleldrive/cuid2';
-import { getDrizzleClient, DbClient } from '@treksistem/db-schema';
+import { getDrizzleClient } from '@treksistem/db-schema';
 import { sql } from 'drizzle-orm';
-
-// Define the environment bindings expected by the worker
-export interface Env {
-  TREKSISTEM_DB: D1Database;
-  TREKSISTEM_R2: R2Bucket; // Add R2 binding for future use
-  WORKER_ENV?: string; // Environment variable for distinguishing dev/staging/prod
-}
-
-// Extend Hono's Context to include our typed drizzle instance and user identity
-type AppContext = {
-  Variables: {
-    db: DbClient;
-    currentUserEmail?: string; // To be populated by CF Access auth middleware
-    currentMitraId?: string; // To be populated after fetching Mitra profile
-  };
-  Bindings: Env;
-};
+import { cfAccessAuth } from './middleware/auth';
+import mitraRoutes from './routes/mitra';
+import type { AppContext } from './types';
 
 const app = new Hono<AppContext>();
 
@@ -50,6 +36,8 @@ app.use('*', cors({
     // CF Access headers
     'Cf-Access-Authenticated-User-Email',
     'Cf-Access-Authenticated-User-Id',
+    // Development mock headers
+    'X-Mock-User-Email',
   ],
   credentials: true, // Allow cookies from CF Access
 }));
@@ -146,44 +134,20 @@ app.get('/api/health', (c) => {
   });
 });
 
-// --- Cloudflare Access Authentication Middleware for Mitra Routes ---
-app.use('/api/mitra/*', async (c, next) => {
-  const userEmailFromHeader = c.req.header('Cf-Access-Authenticated-User-Email');
-  
-  if (userEmailFromHeader) {
-    c.set('currentUserEmail', userEmailFromHeader);
-    console.log(`CF Access User: ${userEmailFromHeader}`);
-  } else if (c.env.WORKER_ENV === 'development') {
-    // For local development, mock the email if header is not present
-    const mockEmail = c.req.header('X-Mock-User-Email') || 'dev-admin@example.com';
-    c.set('currentUserEmail', mockEmail);
-    console.log(`MOCK CF Access User: ${mockEmail}`);
-  } else {
-    // In production/staging, if CF Access is supposed to protect this route and the header is missing,
-    // CF Access itself should have blocked the request.
-    // If it reaches here without the header in prod, it's a misconfiguration.
-    console.error('CRITICAL: Cf-Access-Authenticated-User-Email header missing on protected route in non-dev env.');
-    return c.json({
-      success: false,
-      error: {
-        code: 'UNAUTHENTICATED',
-        message: 'Authentication required.',
-      },
-    }, 401);
-  }
-  
-  await next();
-});
+// --- Route Modules ---
+
+// Mitra Admin Routes (Protected by Cloudflare Access)
+app.route('/api/mitra', mitraRoutes);
 
 // --- Test Endpoints for Development ---
 
-// Test endpoint to verify CF Access integration
-app.get('/api/mitra/test', (c) => {
+// Test endpoint to verify CF Access integration (without Mitra authorization)
+app.get('/api/test/cf-access', cfAccessAuth, (c) => {
   const userEmail = c.get('currentUserEmail');
   return c.json({
     success: true,
     data: {
-      message: 'CF Access authentication working',
+      message: 'Cloudflare Access authentication working',
       userEmail,
       timestamp: new Date().toISOString(),
     },
@@ -250,11 +214,9 @@ app.get('/api/test/db', async (c) => {
 });
 
 // --- Future Route Modules (to be implemented in subsequent tasks) ---
-// import mitraRoutes from './routes/mitra';
 // import publicRoutes from './routes/public';
 // import driverRoutes from './routes/driver';
 // 
-// app.route('/api/mitra', mitraRoutes);
 // app.route('/api/public', publicRoutes);
 // app.route('/api/driver', driverRoutes);
 

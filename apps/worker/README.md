@@ -1,122 +1,112 @@
 # Treksistem Worker API
 
-This is the Cloudflare Worker backend for the Treksistem logistics platform, built with Hono.js and implementing the specifications from TREK-IMPL-WORKER-001 and TREK-IMPL-AUTH-001.
+This is the backend API for the Treksistem logistics platform, built with Hono on Cloudflare Workers.
 
-## Features
+## Architecture
 
-### ✅ Implemented (TREK-IMPL-WORKER-001)
+- **Runtime**: Cloudflare Workers
+- **Framework**: Hono.js
+- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
+- **Authentication**: Cloudflare Access
+- **Storage**: Cloudflare R2 (for file uploads)
 
-- **Hono Application Setup**: Complete Hono.js application with TypeScript support
-- **D1 Database Integration**: Drizzle ORM client with D1 binding
-- **Error Handling**: RFC-TREK-ERROR-001 compliant error responses
-- **CORS Configuration**: Configured for development and production frontends
-- **Health Check Endpoint**: `/api/health` with environment information
-- **Request Logging**: Comprehensive request/response logging middleware
-- **CUID2 ID Generation**: Secure, collision-resistant ID generation
-- **Validation**: Zod-based request validation with proper error handling
+## Authentication & Authorization
 
-### ✅ Implemented (TREK-IMPL-AUTH-001)
+The API implements a two-layer security model following RFC-TREK-AUTH-001:
 
-- **Cloudflare Access Integration**: Middleware for `/api/mitra/*` routes
-- **Development Mode Support**: Mock authentication for local development
-- **User Identity Extraction**: Reads `Cf-Access-Authenticated-User-Email` header
-- **Flexible Authentication**: Supports both CF Access and mock headers
+### 1. Authentication (Cloudflare Access)
+
+- **Protected Routes**: `/api/mitra/*`
+- **Method**: Email OTP or OAuth providers (GitHub, Google)
+- **Headers**: `Cf-Access-Authenticated-User-Email`
+- **Development**: Mock authentication via `X-Mock-User-Email` header
+
+### 2. Authorization (Mitra Mapping)
+
+- Maps authenticated email to Mitra records via `mitras.owner_user_id`
+- Ensures users can only access their own Mitra's resources
+- Sets `currentMitraId` in request context
 
 ## API Endpoints
 
-### Core Endpoints
+### Health & Testing
 
-- `GET /api/health` - Health check with environment info
-- `GET /api/mitra/test` - Test CF Access authentication (protected)
-
-### Development/Test Endpoints
-
-- `GET /api/test/cuid` - Test CUID2 generation
+- `GET /api/health` - Service health check
+- `GET /api/test/cf-access` - Test CF Access authentication
 - `GET /api/test/error` - Test error handling
 - `POST /api/test/validation` - Test request validation
+- `GET /api/test/cuid` - Test CUID generation
 - `GET /api/test/db` - Test database connection
 
-## Environment Configuration
+### Mitra Admin (Protected)
 
-### Required Bindings (wrangler.jsonc)
+All endpoints require Cloudflare Access authentication:
 
-```jsonc
+- `GET /api/mitra/profile` - Get current Mitra profile
+- `PUT /api/mitra/profile` - Update Mitra profile
+- `GET /api/mitra/services` - List Mitra's services
+- `GET /api/mitra/drivers` - List Mitra's drivers
+- `GET /api/mitra/auth/test` - Test authentication & authorization
+
+## Development Setup
+
+### 1. Install Dependencies
+
+```bash
+pnpm install
+```
+
+### 2. Database Setup
+
+```bash
+# Apply migrations to local D1
+wrangler d1 migrations apply TREKSISTEM_DB --local
+
+# Create test Mitra records
+pnpm tsx ../scripts/setup-dev-mitra.ts
+```
+
+### 3. Start Development Server
+
+```bash
+# Start worker with local persistence
+wrangler dev --local --persist
+
+# Or use turbo from root
+turbo dev
+```
+
+### 4. Test Authentication
+
+```bash
+# Test CF Access mock authentication
+curl -H "X-Mock-User-Email: dev-admin@example.com" \
+     http://localhost:8787/api/mitra/auth/test
+
+# Test without authentication (should fail)
+curl http://localhost:8787/api/mitra/profile
+```
+
+## Environment Variables
+
+Configure in `wrangler.jsonc`:
+
+```json
 {
-  "d1_databases": [
-    {
-      "binding": "TREKSISTEM_DB",
-      "database_name": "treksistem-d1-database",
-      "database_id": "your-database-id"
-    }
-  ],
   "vars": {
-    "WORKER_ENV": "development"
+    "WORKER_ENV": "development" // or "staging", "production"
   }
 }
 ```
 
-### Environment Variables
+## Middleware Stack
 
-- `WORKER_ENV`: Environment identifier (`development`, `staging`, `production`)
-
-## Development
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm
-- Wrangler CLI
-
-### Setup
-
-```bash
-# Install dependencies
-pnpm install
-
-# Start development server
-pnpm dev
-
-# The worker will be available at http://localhost:8787
-```
-
-### Testing
-
-Run the comprehensive test suite:
-
-```bash
-./test-endpoints.sh
-```
-
-This tests all implemented functionality including:
-- Health checks
-- Error handling
-- Request validation
-- Database connectivity
-- Authentication middleware
-- CORS headers
-
-## Authentication
-
-### Cloudflare Access Integration
-
-Protected routes under `/api/mitra/*` require Cloudflare Access authentication:
-
-- **Production**: CF Access must be configured to protect these routes
-- **Development**: Uses mock authentication with fallback email `dev-admin@example.com`
-- **Custom Mock**: Send `X-Mock-User-Email` header for custom test emails
-
-### Example Usage
-
-```bash
-# Development mode (automatic mock)
-curl http://localhost:8787/api/mitra/test
-
-# Custom mock email
-curl -H "X-Mock-User-Email: admin@company.com" http://localhost:8787/api/mitra/test
-
-# Production (CF Access header automatically added)
-curl -H "Cf-Access-Authenticated-User-Email: user@company.com" https://api.treksistem.com/api/mitra/test
-```
+1. **CORS**: Configured for frontend domains
+2. **Pretty JSON**: Development-friendly JSON formatting
+3. **Database**: Drizzle client initialization
+4. **Logging**: Request/response logging
+5. **Error Handling**: Standardized error responses
+6. **Authentication**: CF Access header validation (Mitra routes only)
 
 ## Error Handling
 
@@ -127,79 +117,92 @@ All errors follow RFC-TREK-ERROR-001 format:
   "success": false,
   "error": {
     "code": "ERROR_CODE",
-    "message": "Human readable message",
+    "message": "Human-readable message",
     "details": {} // Optional additional details
   }
 }
 ```
 
-### Error Types
-
-- `INTERNAL_ERROR`: Unexpected server errors
-- `VALIDATION_ERROR`: Request validation failures (Zod)
+Common error codes:
 - `UNAUTHENTICATED`: Missing or invalid authentication
-- `NOT_FOUND`: Resource not found (404)
-- `DATABASE_ERROR`: Database connection/query failures
-
-## CORS Configuration
-
-Configured origins for development:
-- `http://localhost:5173` (fe-user-public)
-- `http://localhost:5174` (fe-mitra-admin) 
-- `http://localhost:5175` (fe-driver-view)
-- `http://localhost:3000-3002` (alternative ports)
-
-Production origins should be added to the CORS configuration.
-
-## Database Integration
-
-- **ORM**: Drizzle ORM with D1 adapter
-- **Client**: Auto-initialized via middleware
-- **Access**: Available in route handlers via `c.get('db')`
-
-Example usage:
-```typescript
-app.get('/api/example', async (c) => {
-  const db = c.get('db');
-  const result = await db.select().from(someTable);
-  return c.json({ data: result });
-});
-```
+- `UNAUTHORIZED`: User lacks required permissions
+- `VALIDATION_ERROR`: Request validation failed
+- `NOT_FOUND`: Resource not found
+- `DATABASE_ERROR`: Database operation failed
+- `INTERNAL_ERROR`: Unexpected server error
 
 ## Security Features
 
-- **CUID2 IDs**: Cryptographically secure, collision-resistant identifiers
-- **Request Validation**: Zod schemas for type-safe request handling
-- **Authentication Middleware**: CF Access integration with development fallbacks
-- **CORS Protection**: Restricted origins and methods
-- **Error Sanitization**: No sensitive data leaked in error responses
+### Development Mode
 
-## Future Enhancements
+- Mock authentication via `X-Mock-User-Email` header
+- Bypasses CF Access requirements
+- Only enabled when `WORKER_ENV=development`
 
-The following route modules are planned for implementation:
+### Production Mode
 
-- `/api/mitra/*` - Mitra admin operations
-- `/api/public/*` - Public user operations  
-- `/api/driver/*` - Driver operations
+- Strict CF Access header validation
+- Automatic session management via Cloudflare
+- Secure cookie handling
 
-These will be implemented in subsequent tasks following the modular architecture established here.
+### Request Validation
 
-## Architecture
+- Zod schemas for all request bodies
+- Type-safe parameter validation
+- Automatic error responses for invalid data
 
-### Middleware Stack
+## Database Schema
 
-1. **CORS**: Cross-origin request handling
-2. **Pretty JSON**: Development-friendly JSON formatting
-3. **Drizzle Client**: Database client initialization
-4. **Request Logging**: Request/response timing and logging
-5. **Error Handler**: Global error handling and formatting
-6. **404 Handler**: Not found error responses
+The worker uses the shared database schema from `@treksistem/db-schema`:
 
-### Type Safety
+- **mitras**: Mitra profiles with `owner_user_id` for auth mapping
+- **services**: Services offered by Mitras
+- **drivers**: Drivers associated with Mitras
+- **orders**: Customer orders
+- **order_events**: Order status tracking
 
-- **Environment Bindings**: Typed `Env` interface
-- **Context Variables**: Typed `AppContext` for request context
-- **Request Validation**: Zod schemas for runtime type checking
-- **Database**: Fully typed Drizzle ORM integration
+## Deployment
 
-This implementation provides a solid foundation for the Treksistem logistics platform with proper error handling, authentication, and development tooling. 
+### Local Development
+
+```bash
+wrangler dev --local --persist
+```
+
+### Staging/Production
+
+```bash
+# Deploy to Cloudflare Workers
+wrangler deploy
+
+# Apply database migrations
+wrangler d1 migrations apply TREKSISTEM_DB
+```
+
+## Monitoring
+
+### Logs
+
+The worker provides structured logging:
+
+```
+[2024-03-08T10:30:00.000Z] GET /api/mitra/profile - START
+[CF Access] Authenticated user: admin@example.com
+[Mitra Auth] Authorized Mitra: cm123456789 (Example Mitra) for user: admin@example.com
+[2024-03-08T10:30:00.123Z] GET /api/mitra/profile - 200 (123ms)
+```
+
+### Observability
+
+Cloudflare Workers Analytics provides:
+- Request volume and latency
+- Error rates and status codes
+- Geographic distribution
+- Performance metrics
+
+## Related Documentation
+
+- [Cloudflare Access Setup](../../docs/cloudflare-access-setup.md)
+- [RFC-TREK-AUTH-001](../../.ai/rfcs.md#rfc-trek-auth-001)
+- [Database Schema](../../packages/db-schema/README.md)
+- [Shared Types](../../packages/shared-types/README.md) 
