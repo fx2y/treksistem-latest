@@ -1,0 +1,59 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Treksistem AGENT.MD (Terse)
+
+## Project: Treksistem - Low-Cost Logistics Ta'awun Platform
+
+**Core:** Cloudflare (Workers/Hono, D1/Drizzle, R2, Pages, Access), React/Vite/TS/Shadcn/TanStackQ, Turborepo/pnpm. Goal: Near-zero IT cost, community logistics.
+
+**Monorepo:**
+`apps/`: `worker` (Hono API), `fe-mitra-admin`, `fe-driver-view`, `fe-user-public` (all Vite/React/TS SPAs).
+`packages/`: `db-schema` (Drizzle), `shared-types` (Zod schemas -> TS types), `ui-core` (minimal), `eslint-config-custom`.
+
+**Backend (`apps/worker` - Hono):**
+*   API: `/api/...`. Modular routes. Middleware: CORS, error (RFC-TREK-ERROR-001), auth (CF Access for Mitra, unguessable driverID for Driver), logging.
+*   Auth: Mitra via `Cf-Access-Authenticated-User-Email` -> `mitras.ownerUserId`. Driver via CUID in path.
+*   DB: Drizzle client (`env.TREKSISTEM_DB`). App-level CUIDs. `snake_case` tables/cols.
+*   Validation: Zod (`zValidator`) for req bodies/params.
+*   JSON Configs: `services.configJson`, `drivers.configJson` (parsed, Zod validated).
+*   Bindings: `TREKSISTEM_DB` (D1), `TREKSISTEM_R2` (R2).
+
+**DB (`packages/db-schema` - Drizzle/D1):**
+*   Schema: `schema.ts`. Migrations: Drizzle Kit (`generate:sqlite`, `wrangler d1 migrations apply`).
+*   Tables: `mitras`, `services`, `drivers`, `driver_services`, `orders`, `order_events`.
+*   IDs: CUIDs (app-generated). `json` fields via `text({ mode: 'json' })`.
+
+**Frontend (General - Vite/React/TS/Shadcn/TanStackQ):**
+*   Structure: `src/features`, `src/pages`, `src/components/ui` (Shadcn).
+*   State: TanStack Query (server), `useState` (local). React Context for simple global (e.g., user profile).
+*   Styling: Shadcn/ui + Tailwind.
+*   Forms: React Hook Form + Zod (`@hookform/resolvers/zod`).
+*   API: Centralized service files, used by TanStack Query.
+*   Routing: React Router v6+.
+
+**`shared-types`:** Zod schemas define data structures (API, DB configs), then `z.infer` for TS types. Central source of truth for types.
+
+**Key Features/Flows (Ref RFCs/ImplSpecs):**
+*   **Mitra Admin:** CF Access auth. CRUD Services (complex `configJson` form), Drivers, View Orders, Assign Drivers.
+*   **User Public:** Order Placement (dynamic form from `service.configJson` via `/api/public/services/:serviceId/config`), Order Tracking (`/api/orders/:orderId/track`).
+*   **Driver View:** Mobile-first. Access via `/driver-view/:driverId`. List orders, accept/reject, status updates, R2 photo proof upload (pre-signed URL).
+*   **Notifications:** User-initiated WA deep links (`whatsapp://...`), UI polling. NO WA Business API.
+*   **Geo:** Haversine (MVP), OSM. NO Google Maps API.
+*   **Trust:** `Talangan`/`BarangPenting` orders require `receiverWaNumber`, Orderer sends WA deep link.
+
+**Standards:**
+*   Naming: `camelCase` (vars/fns), `PascalCase` (components/types), `UPPER_SNAKE_CASE` (consts), `snake_case` (DB).
+*   Commits: Conventional Commits. PRs to `develop`.
+*   Formatting: Prettier. Linting: ESLint (`eslint-config-custom`).
+*   TS: `strict: true`. Absolute paths.
+
+**Dev Workflow:**
+*   `pnpm install`, `turbo dev`. Worker: `wrangler dev --local --persist`. FE: `pnpm --filter <app> dev` (Vite proxy to worker).
+
+**Deployment:**
+*   Worker: Wrangler CLI (GitHub Actions). FE: CF Pages (Git auto-deploy). D1 Migrations: `wrangler d1 migrations apply`.
+
+**AI Interaction:** Adhere to above. Assume full RFC/ImplSpec context. Use existing patterns. Justify new deps. Be tactical. Use monorepo paths.

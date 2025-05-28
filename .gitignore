@@ -1,0 +1,14 @@
+.ai
+
+node_modules
+
+dist
+
+tsconfig.build.tsbuildinfo
+tsconfig.tsbuildinfo
+
+.dev.vars
+.env
+.wrangler
+
+.turbo

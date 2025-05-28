@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+.turbo
+coverage
+.next
+.vercel
+*.min.js
+pnpm-lock.yaml 
