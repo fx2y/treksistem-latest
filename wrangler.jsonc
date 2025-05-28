@@ -1,0 +1,20 @@
+{
+  "name": "treksistem-worker",
+  "main": "apps/worker/src/index.ts",
+  "compatibility_date": "2025-03-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "TREKSISTEM_DB",
+      "database_name": "treksistem-d1-database",
+      "database_id": "9268c66b-1d66-4758-bee2-359cb7bb70d7"
+    }
+  ],
+  "vars": {
+    // Add other environment variables here later
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  }
+} 
