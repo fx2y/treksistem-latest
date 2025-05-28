@@ -11,7 +11,7 @@
     }
   ],
   "vars": {
-    // Add other environment variables here later
+    "WORKER_ENV": "development"
   },
   "observability": {
     "enabled": true,
