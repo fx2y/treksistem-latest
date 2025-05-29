@@ -1,4 +1,4 @@
-name: Deploy Treksistem Worker
+name: Deploy Treksistem
 
 on:
   push:
@@ -9,26 +9,31 @@ on:
     branches:
       - main
       - develop
+  workflow_dispatch:  # Allow manual triggering
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20'
   PNPM_VERSION: '8.15.0'
 
 jobs:
-  test:
-    name: Test and Lint
+  # Job 1: Lint, Type Check, and Build
+  test-and-build:
+    name: Test, Lint & Build
     runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
@@ -38,12 +43,16 @@ jobs:
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
       - name: Setup pnpm cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+
+      - name: Generate cache key
+        id: cache-key
+        run: echo "key=${{ runner.os }}-build-${{ hashFiles('**/pnpm-lock.yaml') }}-${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -54,17 +63,60 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build
+      - name: Build all packages and apps
         run: pnpm build
 
-  deploy-staging:
-    name: Deploy to Staging
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            apps/*/dist
+            packages/*/dist
+            node_modules
+          key: ${{ steps.cache-key.outputs.key }}
+
+      # Upload build artifacts for deployment jobs
+      - name: Upload worker build
+        uses: actions/upload-artifact@v4
+        with:
+          name: worker-build
+          path: |
+            apps/worker/src/**
+            wrangler.jsonc
+            package.json
+            pnpm-lock.yaml
+          retention-days: 1
+
+      - name: Upload fe-mitra-admin build
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-mitra-admin-build
+          path: apps/fe-mitra-admin/dist/
+          retention-days: 1
+
+      - name: Upload fe-user-public build
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-user-public-build
+          path: apps/fe-user-public/dist/
+          retention-days: 1
+
+      - name: Upload fe-driver-view build
+        uses: actions/upload-artifact@v4
+        with:
+          name: fe-driver-view-build
+          path: apps/fe-driver-view/dist/
+          retention-days: 1
+
+  # Job 2: Deploy Worker to Staging
+  deploy-worker-staging:
+    name: Deploy Worker (Staging)
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-and-build
     if: github.ref == 'refs/heads/develop'
     environment: staging
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -73,28 +125,30 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy to Staging
+      - name: Deploy Worker to Staging
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --env staging
+          workingDirectory: .
 
-  deploy-production:
-    name: Deploy to Production
+  # Job 3: Deploy Worker to Production
+  deploy-worker-production:
+    name: Deploy Worker (Production)
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-and-build
     if: github.ref == 'refs/heads/main'
     environment: production
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -103,27 +157,109 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy to Production
+      - name: Deploy Worker to Production
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+          workingDirectory: .
 
+  # Job 4: Deploy Frontend Apps to Staging
+  deploy-frontends-staging:
+    name: Deploy Frontends (Staging)
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    strategy:
+      matrix:
+        app: 
+          - { name: "fe-mitra-admin", project: "treksistem-fe-mitra-admin-staging" }
+          - { name: "fe-user-public", project: "treksistem-fe-user-public-staging" }
+          - { name: "fe-driver-view", project: "treksistem-fe-driver-view-staging" }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.app.name }}-build
+          path: apps/${{ matrix.app.name }}/dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy ${{ matrix.app.name }} to Cloudflare Pages (Staging)
+        run: |
+          npx wrangler pages deploy apps/${{ matrix.app.name }}/dist \
+            --project-name ${{ matrix.app.project }} \
+            --branch develop
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Job 5: Deploy Frontend Apps to Production
+  deploy-frontends-production:
+    name: Deploy Frontends (Production)
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    strategy:
+      matrix:
+        app: 
+          - { name: "fe-mitra-admin", project: "treksistem-fe-mitra-admin" }
+          - { name: "fe-user-public", project: "treksistem-fe-user-public" }
+          - { name: "fe-driver-view", project: "treksistem-fe-driver-view" }
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.app.name }}-build
+          path: apps/${{ matrix.app.name }}/dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy ${{ matrix.app.name }} to Cloudflare Pages (Production)
+        run: |
+          npx wrangler pages deploy apps/${{ matrix.app.name }}/dist \
+            --project-name ${{ matrix.app.project }} \
+            --branch main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Job 6: Deploy Preview for PRs
   deploy-preview:
     name: Deploy Preview
     runs-on: ubuntu-latest
-    needs: test
+    needs: test-and-build
     if: github.event_name == 'pull_request'
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -132,16 +268,69 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Deploy Preview
+      - name: Deploy Worker Preview
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --env development 
+          command: deploy --env development
+          workingDirectory: .
+
+      # Deploy frontend previews
+      - name: Download frontend builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "fe-*-build"
+          merge-multiple: true
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy Frontend Previews
+        run: |
+          for app in fe-mitra-admin fe-user-public fe-driver-view; do
+            if [ -d "apps/$app/dist" ]; then
+              echo "Deploying $app preview..."
+              npx wrangler pages deploy apps/$app/dist \
+                --project-name treksistem-$app-preview \
+                --branch pr-${{ github.event.number }} || echo "Warning: $app preview deployment failed"
+            fi
+          done
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  # Job 7: Notify Deployment Status
+  notify-status:
+    name: Notify Deployment Status
+    runs-on: ubuntu-latest
+    needs: [deploy-worker-production, deploy-frontends-production, deploy-worker-staging, deploy-frontends-staging, deploy-preview]
+    if: always()
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "🚀 **Production Deployment**" >> $GITHUB_STEP_SUMMARY
+            echo "- Worker: ${{ needs.deploy-worker-production.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Frontends: ${{ needs.deploy-frontends-production.result }}" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "🧪 **Staging Deployment**" >> $GITHUB_STEP_SUMMARY
+            echo "- Worker: ${{ needs.deploy-worker-staging.result }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Frontends: ${{ needs.deploy-frontends-staging.result }}" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "👀 **Preview Deployment**" >> $GITHUB_STEP_SUMMARY
+            echo "- Preview: ${{ needs.deploy-preview.result }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Build & Test**: ${{ needs.test-and-build.result }}" >> $GITHUB_STEP_SUMMARY 

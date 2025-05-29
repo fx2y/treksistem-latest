@@ -1,0 +1,265 @@
+name: Manual Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'What to deploy'
+        required: true
+        type: choice
+        options:
+          - worker-only
+          - frontends-only
+          - specific-frontend
+          - everything
+        default: 'everything'
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+        default: 'development'
+      frontend_app:
+        description: 'Specific frontend app (if "specific-frontend" selected)'
+        required: false
+        type: choice
+        options:
+          - fe-mitra-admin
+          - fe-user-public
+          - fe-driver-view
+      skip_tests:
+        description: 'Skip tests (emergency deployment)'
+        required: false
+        type: boolean
+        default: false
+      reason:
+        description: 'Reason for manual deployment'
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8.15.0'
+
+jobs:
+  pre-flight-checks:
+    name: Pre-flight Checks
+    runs-on: ubuntu-latest
+    if: github.event.inputs.skip_tests != 'true'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Quick validation
+        run: |
+          echo "Running quick validation before deployment..."
+          pnpm type-check
+          pnpm lint
+          pnpm build
+
+  deploy-worker:
+    name: Deploy Worker
+    runs-on: ubuntu-latest
+    needs: [pre-flight-checks]
+    if: always() && (needs.pre-flight-checks.result == 'success' || github.event.inputs.skip_tests == 'true') && (github.event.inputs.target == 'worker-only' || github.event.inputs.target == 'everything')
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Log deployment info
+        run: |
+          echo "## 🚀 Manual Worker Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Skip Tests:** ${{ github.event.inputs.skip_tests }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env ${{ github.event.inputs.environment }}
+          workingDirectory: .
+
+  deploy-all-frontends:
+    name: Deploy All Frontends
+    runs-on: ubuntu-latest
+    needs: [pre-flight-checks]
+    if: always() && (needs.pre-flight-checks.result == 'success' || github.event.inputs.skip_tests == 'true') && (github.event.inputs.target == 'frontends-only' || github.event.inputs.target == 'everything')
+    environment: ${{ github.event.inputs.environment }}
+    strategy:
+      matrix:
+        app: 
+          - { name: "fe-mitra-admin", project: "treksistem-fe-mitra-admin" }
+          - { name: "fe-user-public", project: "treksistem-fe-user-public" }
+          - { name: "fe-driver-view", project: "treksistem-fe-driver-view" }
+    steps:
+      - name: Log deployment info
+        run: |
+          echo "## 🚀 Manual Frontend Deployment: ${{ matrix.app.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build ${{ matrix.app.name }}
+        run: pnpm turbo build --filter=${{ matrix.app.name }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy ${{ matrix.app.name }}
+        run: |
+          project_suffix=""
+          if [[ "${{ github.event.inputs.environment }}" != "production" ]]; then
+            project_suffix="-${{ github.event.inputs.environment }}"
+          fi
+          
+          npx wrangler pages deploy apps/${{ matrix.app.name }}/dist \
+            --project-name ${{ matrix.app.project }}${project_suffix} \
+            --branch ${{ github.event.inputs.environment }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deploy-specific-frontend:
+    name: Deploy Specific Frontend
+    runs-on: ubuntu-latest
+    needs: [pre-flight-checks]
+    if: always() && (needs.pre-flight-checks.result == 'success' || github.event.inputs.skip_tests == 'true') && github.event.inputs.target == 'specific-frontend'
+    environment: ${{ github.event.inputs.environment }}
+    steps:
+      - name: Validate input
+        run: |
+          if [[ -z "${{ github.event.inputs.frontend_app }}" ]]; then
+            echo "❌ Error: frontend_app must be specified when target is 'specific-frontend'"
+            exit 1
+          fi
+
+      - name: Log deployment info
+        run: |
+          echo "## 🚀 Manual Specific Frontend Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**App:** ${{ github.event.inputs.frontend_app }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build ${{ github.event.inputs.frontend_app }}
+        run: pnpm turbo build --filter=${{ github.event.inputs.frontend_app }}
+
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy ${{ github.event.inputs.frontend_app }}
+        run: |
+          project_suffix=""
+          if [[ "${{ github.event.inputs.environment }}" != "production" ]]; then
+            project_suffix="-${{ github.event.inputs.environment }}"
+          fi
+          
+          npx wrangler pages deploy apps/${{ github.event.inputs.frontend_app }}/dist \
+            --project-name treksistem-${{ github.event.inputs.frontend_app }}${project_suffix} \
+            --branch ${{ github.event.inputs.environment }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  deployment-summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [deploy-worker, deploy-all-frontends, deploy-specific-frontend]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 📋 Manual Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Target:** ${{ github.event.inputs.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Reason:** ${{ github.event.inputs.reason }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Results:" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ needs.deploy-worker.result }}" != "" ]]; then
+            echo "- 🔧 Worker: ${{ needs.deploy-worker.result == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "${{ needs.deploy-all-frontends.result }}" != "" ]]; then
+            echo "- 🌐 All Frontends: ${{ needs.deploy-all-frontends.result == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [[ "${{ needs.deploy-specific-frontend.result }}" != "" ]]; then
+            echo "- 🎯 Specific Frontend: ${{ needs.deploy-specific-frontend.result == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Verify deployment in Cloudflare Dashboard" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Test deployed applications" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Monitor for any issues" >> $GITHUB_STEP_SUMMARY
+          echo "- [ ] Document any manual changes made" >> $GITHUB_STEP_SUMMARY 
