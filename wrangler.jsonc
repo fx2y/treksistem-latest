@@ -1,12 +1,12 @@
 {
-  "name": "treksistem-worker",
+  "name": "treksistem-api",
   "main": "apps/worker/src/index.ts",
   "compatibility_date": "2025-03-07",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
       "binding": "TREKSISTEM_DB",
-      "database_name": "treksistem-d1-database",
+      "database_name": "treksistem-d1-prod",
       "database_id": "9268c66b-1d66-4758-bee2-359cb7bb70d7",
       "migrations_dir": "packages/db-schema/migrations"
     }
@@ -14,15 +14,55 @@
   "r2_buckets": [
     {
       "binding": "TREKSISTEM_R2",
-      "bucket_name": "treksistem-proofs",
+      "bucket_name": "treksistem-proofs-prod",
       "preview_bucket_name": "treksistem-proofs-preview"
     }
   ],
   "vars": {
-    "WORKER_ENV": "development"
+    "WORKER_ENV": "production"
   },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
+  },
+  "env": {
+    "staging": {
+      "name": "treksistem-api-staging",
+      "vars": {
+        "WORKER_ENV": "staging"
+      },
+      "d1_databases": [
+        {
+          "binding": "TREKSISTEM_DB",
+          "database_name": "treksistem-d1-staging",
+          "database_id": "staging-database-id-here"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "TREKSISTEM_R2",
+          "bucket_name": "treksistem-proofs-staging"
+        }
+      ]
+    },
+    "development": {
+      "name": "treksistem-api-dev",
+      "vars": {
+        "WORKER_ENV": "development"
+      },
+      "d1_databases": [
+        {
+          "binding": "TREKSISTEM_DB",
+          "database_name": "treksistem-d1-dev",
+          "database_id": "dev-database-id-here"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "TREKSISTEM_R2",
+          "bucket_name": "treksistem-proofs-dev"
+        }
+      ]
+    }
   }
 } 

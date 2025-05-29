@@ -24,11 +24,10 @@ import {
   DriverApiError,
   UpdateStatusPayload
 } from '@/services/driverApi';
-import { OrderStatus, WhatsAppMessages } from '@treksistem/shared-types';
+import { OrderStatus } from '@treksistem/shared-types';
 import { 
   ArrowLeft,
   MapPin, 
-  Phone, 
   Camera,
   MessageCircle,
   Check,
@@ -42,6 +41,12 @@ import {
   Upload,
   MessageSquare
 } from 'lucide-react';
+
+// Simple WhatsApp messages helper (temporary fix for build issue)
+const WhatsAppMessages = {
+  driverToOrderer: (orderId: string) => 
+    `Hello! I'm your Treksistem driver for order ${orderId.slice(0, 8)}... Please let me know if you have any questions about your delivery.`,
+};
 
 export function DriverOrderDetailPage() {
   const { driverId, orderId } = useParams<{ driverId: string; orderId: string }>();
