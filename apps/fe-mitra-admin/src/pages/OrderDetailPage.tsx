@@ -9,7 +9,6 @@ import {
   DollarSign, 
   User, 
   Package, 
-  Phone,
   MessageSquare,
   Camera,
   Navigation
@@ -22,10 +21,9 @@ import AssignDriverDialog from '@/components/orders/AssignDriverDialog';
 import { 
   fetchMitraOrderById, 
   canAssignDriver, 
-  getOrderStatusBadgeVariant,
-  generateWhatsAppLink 
+  getOrderStatusBadgeVariant
 } from '@/services/mitraOrderApi';
-import { OrderEvent } from '@treksistem/shared-types';
+import { OrderEvent, createWhatsAppLink, WhatsAppMessages } from '@treksistem/shared-types';
 
 export default function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -332,26 +330,43 @@ export default function OrderDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">Customer ID:</span>
-                    <span className="text-sm font-mono">{order.ordererIdentifier}</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-muted-foreground">Customer Contact:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-mono">{order.ordererIdentifier}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const message = WhatsAppMessages.mitraToOrderer(order.id);
+                          const waLink = createWhatsAppLink(order.ordererIdentifier, message);
+                          if (waLink) {
+                            window.open(waLink, '_blank');
+                          }
+                        }}
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   {order.receiverWaNumber && (
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium text-muted-foreground">WhatsApp:</span>
+                      <span className="text-sm font-medium text-muted-foreground">Receiver WhatsApp:</span>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-mono">{order.receiverWaNumber}</span>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            const message = `Hello! This is regarding your order ${order.id.slice(0, 8)}...`;
-                            const waLink = generateWhatsAppLink(order.receiverWaNumber!, message);
-                            window.open(waLink, '_blank');
+                            const message = WhatsAppMessages.mitraToReceiver(order.id);
+                            const waLink = createWhatsAppLink(order.receiverWaNumber!, message);
+                            if (waLink) {
+                              window.open(waLink, '_blank');
+                            }
                           }}
                         >
-                          <Phone className="h-4 w-4" />
+                          <MessageSquare className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
@@ -370,14 +385,29 @@ export default function OrderDetailPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm font-medium text-muted-foreground">Driver Name:</span>
                       <span className="text-sm">{order.driver.name}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm font-medium text-muted-foreground">Driver ID:</span>
-                      <span className="text-sm font-mono">{order.driver.identifier}</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-muted-foreground">Driver Contact:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono">{order.driver.identifier}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const message = WhatsAppMessages.mitraToDriver(order.id, order.driver?.name);
+                            const waLink = createWhatsAppLink(order.driver?.identifier, message);
+                            if (waLink) {
+                              window.open(waLink, '_blank');
+                            }
+                          }}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

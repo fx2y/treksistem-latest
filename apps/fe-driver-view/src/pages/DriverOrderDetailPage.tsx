@@ -24,7 +24,7 @@ import {
   DriverApiError,
   UpdateStatusPayload
 } from '@/services/driverApi';
-import { OrderStatus } from '@treksistem/shared-types';
+import { OrderStatus, WhatsAppMessages } from '@treksistem/shared-types';
 import { 
   ArrowLeft,
   MapPin, 
@@ -39,7 +39,8 @@ import {
   Package,
   AlertTriangle,
   Loader2,
-  Upload
+  Upload,
+  MessageSquare
 } from 'lucide-react';
 
 export function DriverOrderDetailPage() {
@@ -505,7 +506,7 @@ export function DriverOrderDetailPage() {
       {/* Additional Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Additional Actions</CardTitle>
+          <CardTitle>Contact & Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-2 flex-wrap">
@@ -551,9 +552,15 @@ export function DriverOrderDetailPage() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open(generateWhatsAppLink(order.customerIdentifier, `Hi, this is your driver for order ${order.id.slice(-8)}. I will be handling your delivery.`), '_blank')}
+              onClick={() => {
+                const message = WhatsAppMessages.driverToOrderer(order.id);
+                const waLink = generateWhatsAppLink(order.customerIdentifier, message);
+                if (waLink) {
+                  window.open(waLink, '_blank');
+                }
+              }}
             >
-              <Phone className="w-4 h-4 mr-2" />
+              <MessageSquare className="w-4 h-4 mr-2" />
               Contact Customer
             </Button>
           </div>

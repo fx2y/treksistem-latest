@@ -127,15 +127,6 @@ export async function assignDriverToOrder(orderId: string, driverId: string): Pr
   }
 }
 
-// Utility function to generate WhatsApp deep links
-export function generateWhatsAppLink(phoneNumber: string, message: string): string {
-  // Remove any non-digit characters from phone number
-  const cleanPhone = phoneNumber.replace(/\D/g, '');
-  // Encode the message for URL
-  const encodedMessage = encodeURIComponent(message);
-  return `whatsapp://send?phone=${cleanPhone}&text=${encodedMessage}`;
-}
-
 // Utility function to check if an order can be assigned a driver
 export function canAssignDriver(order: ApiOrder): boolean {
   return order.status === 'PENDING_DRIVER_ASSIGNMENT' && !order.driverId;

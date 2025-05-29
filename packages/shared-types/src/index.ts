@@ -6,6 +6,9 @@ export * from './entities';
 export * from './service-config-types';
 export * from './order-types';
 
+// Export WhatsApp utilities explicitly
+export { createWhatsAppLink, WhatsAppMessages } from './utils/whatsapp-links';
+
 // Re-export zod for convenience
 export { z };
 

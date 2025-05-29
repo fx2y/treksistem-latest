@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { fetchOrderTrackingDetails } from '@/services/publicApi';
+import { createWhatsAppLink, WhatsAppMessages } from '@treksistem/shared-types';
 
 /**
  * Get status badge variant based on order status
@@ -271,14 +272,30 @@ export default function OrderTrackingPage() {
             </div>
             
             {orderData.driver.phoneNumber && (
-              <div className="flex items-center gap-3">
-                <Phone className="h-4 w-4 text-muted-foreground" />
-                <a 
-                  href={`tel:${orderData.driver.phoneNumber}`}
-                  className="text-blue-600 hover:underline"
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  <a 
+                    href={`tel:${orderData.driver.phoneNumber}`}
+                    className="text-blue-600 hover:underline"
+                  >
+                    {orderData.driver.phoneNumber}
+                  </a>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const message = WhatsAppMessages.userToMitra(orderData.id);
+                    const waLink = createWhatsAppLink(orderData.driver!.phoneNumber, message);
+                    if (waLink) {
+                      window.open(waLink, '_blank');
+                    }
+                  }}
                 >
-                  {orderData.driver.phoneNumber}
-                </a>
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Chat Driver
+                </Button>
               </div>
             )}
             
@@ -328,6 +345,37 @@ export default function OrderTrackingPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Contact Support */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Butuh Bantuan?
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Hubungi mitra {orderData.mitraName} jika ada pertanyaan tentang order ini.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              const message = WhatsAppMessages.userToMitra(orderData.id);
+              // For now, we'll use a generic message since we don't have Mitra contact info
+              // This would need to be updated when Mitra contact info is available in the API
+              const waMessage = `Hello! I have a question about my Treksistem order ${orderData.id.slice(0, 8)}... from ${orderData.mitraName}. Could you please help me?`;
+              // Since we don't have Mitra phone number in the tracking data, 
+              // we'll show a toast with instructions
+              alert('Untuk menghubungi mitra, silakan gunakan kontak yang tersedia di aplikasi Treksistem atau website resmi.');
+            }}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Hubungi Mitra
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Events Timeline */}
       <Card>
