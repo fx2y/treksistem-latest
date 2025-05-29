@@ -11,7 +11,8 @@ import DriversListPage from './pages/DriversListPage';
 import DriverDetailPage from './pages/DriverDetailPage';
 import DriverFormPage from './pages/DriverFormPage';
 import DriverAssignServicesPage from './pages/DriverAssignServicesPage';
-import OrdersPage from './pages/OrdersPage';
+import OrdersListPage from './pages/OrdersListPage';
+import OrderDetailPage from './pages/OrderDetailPage';
 import { useAuthStore } from './store/authStore';
 
 function App() {
@@ -49,7 +50,8 @@ function App() {
           <Route path="/drivers/:driverId" element={<DriverDetailPage />} />
           <Route path="/drivers/:driverId/edit" element={<DriverFormPage mode="edit" />} />
           <Route path="/drivers/:driverId/assign-services" element={<DriverAssignServicesPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders" element={<OrdersListPage />} />
+          <Route path="/orders/:orderId" element={<OrderDetailPage />} />
         </Route>
         
         {/* 404 page */}
