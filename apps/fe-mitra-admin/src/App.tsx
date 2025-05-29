@@ -7,7 +7,10 @@ import { DashboardPage } from './pages/DashboardPage';
 import ServicesListPage from './pages/ServicesListPage';
 import ServiceDetailPage from './pages/ServiceDetailPage';
 import ServiceFormPage from './pages/ServiceFormPage';
-import DriversPage from './pages/DriversPage';
+import DriversListPage from './pages/DriversListPage';
+import DriverDetailPage from './pages/DriverDetailPage';
+import DriverFormPage from './pages/DriverFormPage';
+import DriverAssignServicesPage from './pages/DriverAssignServicesPage';
 import OrdersPage from './pages/OrdersPage';
 import { useAuthStore } from './store/authStore';
 
@@ -41,7 +44,11 @@ function App() {
           <Route path="/services/new" element={<ServiceFormPage mode="create" />} />
           <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
           <Route path="/services/:serviceId/edit" element={<ServiceFormPage mode="edit" />} />
-          <Route path="/drivers" element={<DriversPage />} />
+          <Route path="/drivers" element={<DriversListPage />} />
+          <Route path="/drivers/new" element={<DriverFormPage mode="create" />} />
+          <Route path="/drivers/:driverId" element={<DriverDetailPage />} />
+          <Route path="/drivers/:driverId/edit" element={<DriverFormPage mode="edit" />} />
+          <Route path="/drivers/:driverId/assign-services" element={<DriverAssignServicesPage />} />
           <Route path="/orders" element={<OrdersPage />} />
         </Route>
         
