@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import OrderPlacementPage from './pages/OrderPlacementPage';
 
 // Placeholder pages - will be implemented in next IS
 function PublicHomePage() { 
@@ -43,7 +44,7 @@ function App() {
       <div className="container mx-auto p-4"> {/* Basic layout container */}
         <Routes>
           <Route path="/" element={<PublicHomePage />} />
-          {/* OrderPlacementPage will be e.g. /order/new?serviceId=:serviceId or /service/:serviceId/order */}
+          <Route path="/order/new" element={<OrderPlacementPage />} />
           {/* OrderTrackingPage will be e.g. /track/:orderId */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
