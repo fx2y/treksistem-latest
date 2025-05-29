@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import ServicesListPage from './pages/ServicesListPage';
 import ServiceDetailPage from './pages/ServiceDetailPage';
+import ServiceFormPage from './pages/ServiceFormPage';
 import DriversPage from './pages/DriversPage';
 import OrdersPage from './pages/OrdersPage';
 import { useAuthStore } from './store/authStore';
@@ -37,10 +38,9 @@ function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/create-profile" element={<CreateProfilePage />} />
           <Route path="/services" element={<ServicesListPage />} />
+          <Route path="/services/new" element={<ServiceFormPage mode="create" />} />
           <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
-          {/* TODO: Add these routes in the next phase */}
-          {/* <Route path="/services/new" element={<ServiceFormPage mode="create" />} /> */}
-          {/* <Route path="/services/:serviceId/edit" element={<ServiceFormPage mode="edit" />} /> */}
+          <Route path="/services/:serviceId/edit" element={<ServiceFormPage mode="edit" />} />
           <Route path="/drivers" element={<DriversPage />} />
           <Route path="/orders" element={<OrdersPage />} />
         </Route>

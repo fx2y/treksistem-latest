@@ -1,4 +1,5 @@
 import { Service, ServiceConfigBase } from '@treksistem/shared-types';
+import { CreateServicePayload } from '@/types/service';
 import { apiClient } from './api';
 
 export interface ApiService extends Service {
@@ -49,18 +50,57 @@ export async function fetchMitraServiceById(serviceId: string): Promise<ApiServi
   }
 }
 
-// TODO: Add create, update, delete functions later
-export async function createMitraService(_serviceData: Partial<Service>): Promise<ApiService> {
-  // Implementation will be added in the next phase
-  throw new Error('Not implemented yet');
+export async function createMitraService(payload: CreateServicePayload): Promise<ApiService> {
+  try {
+    const response = await apiClient.post<{ success: boolean; data: any }>('/mitra/services', payload);
+    
+    if (!response.success) {
+      throw new Error('Failed to create service');
+    }
+    
+    return {
+      ...response.data,
+      serviceType: response.data.serviceTypeKey,
+      parsedConfigJson: typeof response.data.configJson === 'string' 
+        ? JSON.parse(response.data.configJson) 
+        : response.data.configJson,
+    };
+  } catch (error) {
+    console.error('Error creating service:', error);
+    throw error;
+  }
 }
 
-export async function updateMitraService(_serviceId: string, _serviceData: Partial<Service>): Promise<ApiService> {
-  // Implementation will be added in the next phase
-  throw new Error('Not implemented yet');
+export async function updateMitraService(serviceId: string, payload: Partial<CreateServicePayload>): Promise<ApiService> {
+  try {
+    const response = await apiClient.put<{ success: boolean; data: any }>(`/mitra/services/${serviceId}`, payload);
+    
+    if (!response.success) {
+      throw new Error('Failed to update service');
+    }
+    
+    return {
+      ...response.data,
+      serviceType: response.data.serviceTypeKey,
+      parsedConfigJson: typeof response.data.configJson === 'string' 
+        ? JSON.parse(response.data.configJson) 
+        : response.data.configJson,
+    };
+  } catch (error) {
+    console.error(`Error updating service ${serviceId}:`, error);
+    throw error;
+  }
 }
 
-export async function deleteMitraService(_serviceId: string): Promise<void> {
-  // Implementation will be added in the next phase
-  throw new Error('Not implemented yet');
+export async function deleteMitraService(serviceId: string): Promise<void> {
+  try {
+    const response = await apiClient.delete<{ success: boolean }>(`/mitra/services/${serviceId}`);
+    
+    if (!response.success) {
+      throw new Error('Failed to delete service');
+    }
+  } catch (error) {
+    console.error(`Error deleting service ${serviceId}:`, error);
+    throw error;
+  }
 } 

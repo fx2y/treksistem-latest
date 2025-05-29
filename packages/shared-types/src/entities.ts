@@ -72,6 +72,23 @@ export const ServiceSchema = z.object({
 export type Service = z.infer<typeof ServiceSchema>;
 
 /**
+ * Create Service Payload Schema
+ * Used for creating new services via API
+ */
+export const CreateServicePayloadSchema = z.object({
+  /** User-facing service name */
+  name: z.string().min(3, "Service name must be at least 3 characters").max(100, "Service name must be at most 100 characters"),
+  /** Core service type identifier */
+  serviceTypeKey: z.string().min(1, "Service type key is required"),
+  /** Detailed service configuration */
+  configJson: ServiceConfigBaseSchema,
+  /** Whether service is currently active */
+  isActive: z.boolean().optional().default(true),
+});
+
+export type CreateServicePayload = z.infer<typeof CreateServicePayloadSchema>;
+
+/**
  * Driver Entity Schema
  * Represents a driver working for a Mitra
  */
