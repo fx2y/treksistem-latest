@@ -38,6 +38,71 @@ export interface OrderPlacementResponse {
 }
 
 /**
+ * Order Tracking Data
+ * Extended tracking information with events timeline
+ */
+export interface OrderTrackingData {
+  /** Order ID */
+  id: string;
+  /** Current status */
+  status: string;
+  /** Service name */
+  serviceName: string;
+  /** Mitra name */
+  mitraName: string;
+  /** Driver information (when assigned and public) */
+  driver?: {
+    name: string;
+    phoneNumber?: string;
+    vehicleInfo?: string;
+  };
+  /** Pickup address */
+  pickupAddress: {
+    text: string;
+    lat?: number | null;
+    lon?: number | null;
+    notes?: string;
+  };
+  /** Dropoff address */
+  dropoffAddress: {
+    text: string;
+    lat?: number | null;
+    lon?: number | null;
+    notes?: string;
+  };
+  /** Estimated cost */
+  estimatedCost?: number;
+  /** Final cost */
+  finalCost?: number;
+  /** Order creation time */
+  createdAt: number;
+  /** Last update time */
+  updatedAt?: number;
+  /** Complete events timeline (sanitized for public) */
+  events: Array<{
+    id: string;
+    timestamp: number;
+    eventType: string;
+    /** Sanitized event data for public consumption */
+    dataJson: {
+      oldStatus?: string;
+      newStatus?: string;
+      reason?: string;
+      /** R2 object key or public URL for photos */
+      photoR2Key?: string;
+      photoUrl?: string;
+      photoType?: 'PICKUP_PROOF' | 'DELIVERY_PROOF' | 'CONDITION_PROOF';
+      caption?: string;
+      lat?: number;
+      lon?: number;
+      note?: string;
+      author?: string;
+      [key: string]: unknown;
+    };
+  }>;
+}
+
+/**
  * API Error Response
  * Standardized error structure
  */
@@ -135,6 +200,18 @@ export async function placeOrder(payload: OrderPlacementPayload): Promise<OrderP
   });
 
   return await handleApiResponse<OrderPlacementResponse>(response);
+}
+
+/**
+ * Fetch order tracking details
+ */
+export async function fetchOrderTrackingDetails(orderId: string): Promise<OrderTrackingData> {
+  if (!orderId) {
+    throw new ApiRequestError('Order ID is required', 'MISSING_ORDER_ID');
+  }
+
+  const response = await fetch(`${API_BASE_URL}/orders/${encodeURIComponent(orderId)}/track`);
+  return await handleApiResponse<OrderTrackingData>(response);
 }
 
 /**

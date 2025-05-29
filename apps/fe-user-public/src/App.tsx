@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import OrderPlacementPage from './pages/OrderPlacementPage';
+import OrderTrackingPage from './pages/OrderTrackingPage';
 
 // Placeholder pages - will be implemented in next IS
 function PublicHomePage() { 
@@ -45,7 +46,7 @@ function App() {
         <Routes>
           <Route path="/" element={<PublicHomePage />} />
           <Route path="/order/new" element={<OrderPlacementPage />} />
-          {/* OrderTrackingPage will be e.g. /track/:orderId */}
+          <Route path="/track/:orderId" element={<OrderTrackingPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
