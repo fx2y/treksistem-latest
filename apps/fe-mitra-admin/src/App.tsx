@@ -1,82 +1,65 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { Toaster } from "@/components/ui/sonner";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
-import { DashboardPage } from "@/pages/DashboardPage";
-
-function HomePage() { 
-  return (
-    <div className="min-h-screen bg-background p-8">
-      <h1 className="text-4xl font-bold text-foreground mb-6">Mitra Admin Portal</h1>
-      <div className="space-y-4">
-        <nav className="space-y-2">
-          <Link 
-            to="/dashboard" 
-            className="block text-primary hover:text-primary/80 underline"
-          >
-            Go to Dashboard
-          </Link>
-          <Link 
-            to="/login-placeholder" 
-            className="block text-primary hover:text-primary/80 underline"
-          >
-            Login (Placeholder)
-          </Link>
-        </nav>
-        <div className="pt-4">
-          <Button 
-            onClick={() => toast.success("Shadcn/ui setup is working!")}
-            className="mr-4"
-          >
-            Test Toast
-          </Button>
-          <Button variant="outline">
-            Test Button
-          </Button>
-        </div>
-      </div>
-    </div>
-  ); 
-}
-
-function LoginPagePlaceholder() { 
-  return (
-    <div className="min-h-screen bg-background p-8">
-      <h2 className="text-2xl font-semibold text-foreground mb-4">Login Page Placeholder</h2>
-      <p className="text-muted-foreground">Actual login via Cloudflare Access.</p>
-      <Link 
-        to="/" 
-        className="block mt-4 text-primary hover:text-primary/80 underline"
-      >
-        Back to Home
-      </Link>
-    </div>
-  ); 
-}
-
-function NotFoundPage() { 
-  return (
-    <div className="min-h-screen bg-background p-8">
-      <h2 className="text-2xl font-semibold text-destructive">404 - Page Not Found</h2>
-      <Link 
-        to="/" 
-        className="block mt-4 text-primary hover:text-primary/80 underline"
-      >
-        Back to Home
-      </Link>
-    </div>
-  ); 
-}
+import ProtectedRoute from './router/ProtectedRoute';
+import CreateProfilePage from './pages/CreateProfilePage';
+import LoginPage from './pages/LoginPage';
+import { DashboardPage } from './pages/DashboardPage';
+import ServicesListPage from './pages/ServicesListPage';
+import ServiceDetailPage from './pages/ServiceDetailPage';
+import DriversPage from './pages/DriversPage';
+import OrdersPage from './pages/OrdersPage';
+import { useAuthStore } from './store/authStore';
 
 function App() {
+  const { isLoading: isAuthLoading } = useAuthStore();
+
+  // Show loading screen during initial auth check
+  if (isAuthLoading && !useAuthStore.getState().isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-lg font-medium text-foreground">Loading Treksistem</p>
+          <p className="text-sm text-muted-foreground mt-2">Checking authentication status...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/login-placeholder" element={<LoginPagePlaceholder />} />
-        {/* Add other routes for services, drivers, orders later */}
-        <Route path="*" element={<NotFoundPage />} />
+        {/* Public routes */}
+        <Route path="/login" element={<LoginPage />} />
+        
+        {/* Protected routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/create-profile" element={<CreateProfilePage />} />
+          <Route path="/services" element={<ServicesListPage />} />
+          <Route path="/services/:serviceId" element={<ServiceDetailPage />} />
+          {/* TODO: Add these routes in the next phase */}
+          {/* <Route path="/services/new" element={<ServiceFormPage mode="create" />} /> */}
+          {/* <Route path="/services/:serviceId/edit" element={<ServiceFormPage mode="edit" />} /> */}
+          <Route path="/drivers" element={<DriversPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+        </Route>
+        
+        {/* 404 page */}
+        <Route path="*" element={
+          <div className="min-h-screen bg-background flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-foreground mb-4">404</h1>
+              <p className="text-muted-foreground mb-4">Page not found</p>
+              <Link 
+                to="/" 
+                className="text-primary hover:text-primary/80 underline"
+              >
+                Go back to Dashboard
+              </Link>
+            </div>
+          </div>
+        } />
       </Routes>
       <Toaster />
     </BrowserRouter>

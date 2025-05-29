@@ -5,10 +5,10 @@ import { useAuthStore } from '@/store/authStore';
 import { 
   LayoutDashboard, 
   Users, 
-  Car, 
   Package, 
   Settings, 
-  LogOut 
+  LogOut,
+  ShoppingCart
 } from 'lucide-react';
 
 interface LayoutProps {
@@ -16,20 +16,21 @@ interface LayoutProps {
 }
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Services', href: '/services', icon: Package },
   { name: 'Drivers', href: '/drivers', icon: Users },
-  { name: 'Vehicles', href: '/vehicles', icon: Car },
+  { name: 'Orders', href: '/orders', icon: ShoppingCart },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
-  const { user, clearUser } = useAuthStore();
+  const { mitraProfile, logout } = useAuthStore();
 
   const handleLogout = () => {
-    clearUser();
-    // In a real app, you'd also call the logout API
+    logout();
+    // In production, this would redirect to CF Access logout URL:
+    // window.location.href = 'https://<your-team-name>.cloudflareaccess.com/cdn-cgi/access/logout';
   };
 
   return (
@@ -38,7 +39,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border">
         <div className="flex h-16 items-center px-6 border-b border-border">
           <h1 className="text-xl font-semibold text-foreground">
-            Mitra Admin
+            Treksistem
           </h1>
         </div>
         
@@ -70,21 +71,21 @@ export function Layout({ children }: LayoutProps) {
         </nav>
 
         {/* User section */}
-        {user && (
+        {mitraProfile && (
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                   <span className="text-xs font-medium text-primary-foreground">
-                    {user.name.charAt(0).toUpperCase()}
+                    {mitraProfile.name.charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">
-                    {user.name}
+                    {mitraProfile.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {user.email}
+                    {mitraProfile.ownerUserId}
                   </p>
                 </div>
               </div>
@@ -93,6 +94,7 @@ export function Layout({ children }: LayoutProps) {
                 size="sm"
                 onClick={handleLogout}
                 className="h-8 w-8 p-0"
+                title="Logout"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
