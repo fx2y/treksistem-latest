@@ -8,9 +8,31 @@ import App from './App.tsx'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      retry: (failureCount, error: any) => {
+        // Don't retry on client errors (4xx)
+        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+          return false;
+        }
+        
+        // Don't retry on specific HTTP status codes
+        if (error?.response?.status === 404 || 
+            error?.response?.status === 401 || 
+            error?.response?.status === 403) {
+          return false;
+        }
+        
+        // Retry up to 2 times for server errors (less aggressive for public users)
+        return failureCount < 2;
+      },
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+      refetchOnWindowFocus: false, // Avoid unnecessary refetches for public users
+    },
+    mutations: {
+      retry: (failureCount, error: any) => {
+        // Don't retry mutations for public users to avoid confusion
+        return false;
+      },
     },
   },
 })

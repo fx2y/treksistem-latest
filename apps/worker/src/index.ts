@@ -8,12 +8,16 @@ import { getDrizzleClient } from '@treksistem/db-schema';
 import { sql } from 'drizzle-orm';
 import { cfAccessAuth } from './middleware/auth';
 import { securityHeaders } from './middleware/security-headers';
+import { usageTrackingMiddleware } from './utils/usage-monitoring';
+import { Logger, AppError, ERROR_CODES } from './utils/error-handling';
 import mitraRoutes from './routes/mitra';
 import mitraOrderRoutes from './routes/mitra.orders';
 import publicServiceRoutes from './routes/public.services';
 import orderPlacementRoutes from './routes/orders.placement';
 import driverOrderRoutes from './routes/driver.orders';
 import testSecurityRoutes from './routes/test.security';
+import testErrorRoutes from './routes/test.error-handling';
+import adminRoutes from './routes/admin';
 import { calculateHaversineDistance, calculateDistance, type Point } from './utils/geo';
 import type { AppContext } from './types';
 
@@ -77,17 +81,34 @@ app.use('*', async (c, next) => {
 // 5. Security Headers Middleware
 app.use('*', securityHeaders());
 
-// 6. Global Error Handler (as per RFC-TREK-ERROR-001)
+// 6. Usage Monitoring (RFC-TREK-COST-001 compliance)
+app.use('*', usageTrackingMiddleware);
+
+// 7. Global Error Handler (as per RFC-TREK-ERROR-001)
 app.onError((err, c) => {
-  console.error(`[ERROR: ${c.req.method} ${c.req.url}]`, err);
+  const method = c.req.method;
+  const url = c.req.url;
   
   // Check if it's a Hono HTTPException
   if (err instanceof Error && 'getResponse' in err && typeof err.getResponse === 'function') {
-    // Let Hono handle its own HTTP exceptions
+    Logger.warn(`HTTP Exception: ${method} ${url}`, {
+      status: (err as any).status,
+      message: err.message,
+    });
     return (err as any).getResponse();
   }
 
-  // Default error response structure
+  // Check if it's our custom AppError
+  if (err instanceof AppError) {
+    Logger.warn(`Application Error: ${method} ${url}`, {
+      code: err.code,
+      message: err.message,
+      details: err.details,
+    });
+    return c.json(err.toErrorResponse(), err.statusCode as any);
+  }
+
+  // Default error response structure per RFC-TREK-ERROR-001
   let statusCode = 500;
   const errorResponse: { 
     success: boolean; 
@@ -99,7 +120,7 @@ app.onError((err, c) => {
   } = {
     success: false,
     error: {
-      code: 'INTERNAL_ERROR',
+      code: ERROR_CODES.INTERNAL_ERROR,
       message: 'An unexpected error occurred.',
     },
   };
@@ -107,23 +128,58 @@ app.onError((err, c) => {
   // Handle specific error types
   if (err.name === 'ZodError') {
     statusCode = 400;
-    errorResponse.error.code = 'VALIDATION_ERROR';
+    errorResponse.error.code = ERROR_CODES.VALIDATION_ERROR;
     errorResponse.error.message = 'Request validation failed.';
     errorResponse.error.details = (err as any).errors;
+    Logger.warn(`Validation Error: ${method} ${url}`, { errors: (err as any).errors });
+  } else if (err.name === 'CostCalculationError') {
+    statusCode = 400;
+    errorResponse.error.code = (err as any).code || ERROR_CODES.COST_CALCULATION_ERROR;
+    errorResponse.error.message = err.message;
+    errorResponse.error.details = (err as any).details;
+    Logger.warn(`Cost Calculation Error: ${method} ${url}`, {
+      code: (err as any).code,
+      details: (err as any).details,
+    });
+  } else if (err.name === 'TrustMechanismError') {
+    statusCode = 400;
+    errorResponse.error.code = (err as any).code || ERROR_CODES.TRUST_MECHANISM_ERROR;
+    errorResponse.error.message = err.message;
+    errorResponse.error.details = (err as any).details;
+    Logger.warn(`Trust Mechanism Error: ${method} ${url}`, {
+      code: (err as any).code,
+      details: (err as any).details,
+    });
   } else if ('statusCode' in err && typeof (err as any).statusCode === 'number') {
     statusCode = (err as any).statusCode;
     errorResponse.error.message = err.message;
     if ('code' in err && typeof (err as any).code === 'string') {
       errorResponse.error.code = (err as any).code;
     }
+  } else if (err.message?.includes('UNIQUE constraint failed')) {
+    // Handle database constraint violations
+    statusCode = 409;
+    errorResponse.error.code = ERROR_CODES.CONFLICT;
+    errorResponse.error.message = 'Resource already exists or constraint violation.';
+    Logger.warn(`Database Constraint Error: ${method} ${url}`, { error: err.message });
+  } else if (err.message?.includes('NOT NULL constraint failed')) {
+    statusCode = 400;
+    errorResponse.error.code = ERROR_CODES.VALIDATION_ERROR;
+    errorResponse.error.message = 'Required field missing.';
+    Logger.warn(`Database Validation Error: ${method} ${url}`, { error: err.message });
   } else {
+    // Log unexpected errors with full context
     errorResponse.error.message = err.message || 'An unexpected internal error occurred.';
+    Logger.error(`Unexpected Error: ${method} ${url}`, err, {
+      url,
+      method,
+    });
   }
 
   return c.json(errorResponse, statusCode as any);
 });
 
-// 7. 404 Handler
+// 8. 404 Handler
 app.notFound((c) => {
   return c.json({
     success: false,
@@ -153,6 +209,9 @@ app.route('/api/orders', orderPlacementRoutes);
 // Mitra Admin Routes (Protected by Cloudflare Access)
 app.route('/api/mitra', mitraRoutes);
 app.route('/api/mitra/orders', mitraOrderRoutes);
+
+// Admin Routes (Protected by Cloudflare Access)
+app.route('/api/admin', adminRoutes);
 
 // Driver Routes (Protected by unguessable driverId in path)
 app.route('/api/driver/:driverId/orders', driverOrderRoutes);
@@ -233,6 +292,9 @@ app.get('/api/test/db', async (c) => {
 
 // Security test routes
 app.route('/api/test/security', testSecurityRoutes);
+
+// Comprehensive error handling test routes
+app.route('/api/test/error-handling', testErrorRoutes);
 
 // Note: Geo distance calculation test endpoints were removed after successful verification
 // The geo utility is available via import: { calculateHaversineDistance, calculateDistance } from './utils/geo'

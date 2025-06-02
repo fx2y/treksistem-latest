@@ -1,16 +1,86 @@
+import { ApiErrorCode, type ApiErrorCodeType } from '@treksistem/shared-types';
+
 // Base API configuration and utilities
 const API_BASE_URL = '/api'; // This will be proxied to the worker in development
 
 export interface ApiResponse<T> {
-  data: T;
   success: boolean;
-  message?: string;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
 }
 
-export interface ApiError {
-  message: string;
-  status: number;
-  code?: string;
+export class ApiError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status: number,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+
+  /**
+   * Check if this is a specific error code
+   */
+  is(code: ApiErrorCodeType): boolean {
+    return this.code === code;
+  }
+
+  /**
+   * Check if this is a client error (4xx)
+   */
+  isClientError(): boolean {
+    return this.status >= 400 && this.status < 500;
+  }
+
+  /**
+   * Check if this is a server error (5xx)
+   */
+  isServerError(): boolean {
+    return this.status >= 500;
+  }
+
+  /**
+   * Check if this is a validation error
+   */
+  isValidationError(): boolean {
+    return this.is(ApiErrorCode.VALIDATION_ERROR);
+  }
+
+  /**
+   * Check if this is an authentication error
+   */
+  isAuthError(): boolean {
+    return this.is(ApiErrorCode.UNAUTHORIZED) || this.is(ApiErrorCode.FORBIDDEN);
+  }
+
+  /**
+   * Get user-friendly error message
+   */
+  getUserMessage(): string {
+    switch (this.code) {
+      case ApiErrorCode.VALIDATION_ERROR:
+        return 'Please check your input and try again.';
+      case ApiErrorCode.UNAUTHORIZED:
+        return 'Please log in to continue.';
+      case ApiErrorCode.FORBIDDEN:
+        return 'You do not have permission to perform this action.';
+      case ApiErrorCode.NOT_FOUND:
+        return 'The requested resource was not found.';
+      case ApiErrorCode.RESOURCE_CONFLICT:
+        return 'This resource already exists or conflicts with existing data.';
+      case ApiErrorCode.INTERNAL_SERVER_ERROR:
+      case ApiErrorCode.DATABASE_ERROR:
+        return 'Something went wrong on our end. Please try again later.';
+      default:
+        return this.message || 'An unexpected error occurred.';
+    }
+  }
 }
 
 class ApiClient {
@@ -38,24 +108,58 @@ class ApiClient {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new ApiError({
-          message: errorData.message || `HTTP ${response.status}: ${response.statusText}`,
-          status: response.status,
-          code: errorData.code,
-        });
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch {
+          // If response is not JSON, create a generic error
+          errorData = {
+            error: {
+              code: 'NETWORK_ERROR',
+              message: `HTTP ${response.status}: ${response.statusText}`,
+            }
+          };
+        }
+
+        // Handle RFC-TREK-ERROR-001 format
+        if (errorData.success === false && errorData.error) {
+          throw new ApiError(
+            errorData.error.code || 'UNKNOWN_ERROR',
+            errorData.error.message || `HTTP ${response.status}`,
+            response.status,
+            errorData.error.details
+          );
+        }
+
+        // Fallback for non-standard error responses
+        throw new ApiError(
+          'UNKNOWN_ERROR',
+          errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+          response.status
+        );
       }
 
-      return await response.json();
+      const data = await response.json();
+      
+      // Handle RFC-TREK-ERROR-001 success format
+      if (data.success === true) {
+        return data.data;
+      }
+      
+      // Handle legacy format or direct data return
+      return data;
+      
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
       
-      throw new ApiError({
-        message: error instanceof Error ? error.message : 'Network error',
-        status: 0,
-      });
+      // Network or other errors
+      throw new ApiError(
+        'NETWORK_ERROR',
+        error instanceof Error ? error.message : 'Network error',
+        0
+      );
     }
   }
 
@@ -82,17 +186,4 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient();
-
-// Custom error class for API errors
-export class ApiError extends Error {
-  status: number;
-  code?: string;
-
-  constructor({ message, status, code }: { message: string; status: number; code?: string }) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-    this.code = code;
-  }
-} 
+export const apiClient = new ApiClient(); 

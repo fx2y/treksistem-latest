@@ -13,6 +13,7 @@ import DriverFormPage from './pages/DriverFormPage';
 import DriverAssignServicesPage from './pages/DriverAssignServicesPage';
 import OrdersListPage from './pages/OrdersListPage';
 import OrderDetailPage from './pages/OrderDetailPage';
+import CostOptimizationPage from './pages/CostOptimizationPage';
 import { useAuthStore } from './store/authStore';
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
           <Route path="/drivers/:driverId/assign-services" element={<DriverAssignServicesPage />} />
           <Route path="/orders" element={<OrdersListPage />} />
           <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="/cost-optimization" element={<CostOptimizationPage />} />
         </Route>
         
         {/* 404 page */}
