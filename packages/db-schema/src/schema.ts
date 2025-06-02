@@ -92,6 +92,22 @@ export const orderEvents = sqliteTable('order_events', {
   actorIdx: index('order_events_actor_idx').on(table.actorType, table.actorId),
 }));
 
+export const masterServiceTemplates = sqliteTable('master_service_templates', {
+  id: text('id').primaryKey(), // Human-readable key like 'MOTOR_P2P_EXPRESS_TPL'
+  name: text('name').notNull(), // "Basic Ojek Template"
+  description: text('description'),
+  // Service type key that this template applies to
+  appliesToServiceTypeKey: text('applies_to_service_type_key').notNull(),
+  // JSON string storing a valid ServiceConfigBase object
+  configJson: text('config_json', { mode: 'json' }).notNull(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch('subsec') * 1000)`),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(sql`(unixepoch('subsec') * 1000)`),
+}, (table) => ({
+  serviceTypeIdx: index('master_templates_service_type_idx').on(table.appliesToServiceTypeKey),
+  sortOrderIdx: index('master_templates_sort_order_idx').on(table.sortOrder),
+}));
+
 // === Drizzle Relations ===
 
 export const mitraRelations = relations(mitras, ({ many }) => ({
@@ -126,4 +142,8 @@ export const orderRelations = relations(orders, ({ one, many }) => ({
 
 export const orderEventRelations = relations(orderEvents, ({ one }) => ({
   order: one(orders, { fields: [orderEvents.orderId], references: [orders.id] }),
+}));
+
+export const masterServiceTemplateRelations = relations(masterServiceTemplates, ({ many }) => ({
+  // No direct relations needed for templates, they're reference data
 })); 

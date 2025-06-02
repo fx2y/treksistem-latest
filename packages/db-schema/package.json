@@ -11,6 +11,7 @@
     "db:copy-migrations": "cp -r migrations ../../migrations",
     "db:migrate:local": "pnpm db:copy-migrations && cd ../.. && wrangler d1 migrations apply TREKSISTEM_DB --local",
     "db:migrate:remote": "pnpm db:copy-migrations && cd ../.. && wrangler d1 migrations apply TREKSISTEM_DB",
+    "db:seed": "tsx scripts/seed.ts",
     "clean": "rm -rf dist drizzle"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "@treksistem/eslint-config-custom": "workspace:*",
     "dotenv": "^16.5.0",
     "drizzle-kit": "^0.21.1",
+    "tsx": "^4.7.1",
     "typescript": "^5.4.5",
     "wrangler": "^3.57.1"
   }

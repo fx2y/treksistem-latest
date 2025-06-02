@@ -3,13 +3,14 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { isCuid } from '@paralleldrive/cuid2';
-import { services, mitras } from '@treksistem/db-schema';
+import { services, mitras, masterServiceTemplates } from '@treksistem/db-schema';
 import { 
   validateServiceConfig, 
   validatePublicServiceAccess, 
   createPublicServiceResponse 
 } from '../utils/service-config-validator';
 import type { AppContext } from '../types';
+import { sql } from 'drizzle-orm';
 
 const publicServiceRoutes = new Hono<AppContext>();
 
@@ -121,5 +122,51 @@ publicServiceRoutes.get(
     }
   }
 );
+
+/**
+ * GET /master-templates
+ * Fetch all master service templates for Mitra service creation
+ * 
+ * This endpoint returns all available master service templates that Mitras can use
+ * as starting points when creating new services. Templates are ordered by sortOrder.
+ * 
+ * Used by the Mitra Admin Portal to populate template selection dropdowns.
+ */
+publicServiceRoutes.get('/master-templates', async (c) => {
+  const db = c.get('db');
+
+  try {
+    // Query all master service templates ordered by sort order
+    const templates = await db
+      .select({
+        id: masterServiceTemplates.id,
+        name: masterServiceTemplates.name,
+        description: masterServiceTemplates.description,
+        appliesToServiceTypeKey: masterServiceTemplates.appliesToServiceTypeKey,
+        configJson: masterServiceTemplates.configJson,
+        sortOrder: masterServiceTemplates.sortOrder,
+      })
+      .from(masterServiceTemplates)
+      .orderBy(masterServiceTemplates.sortOrder);
+
+    return c.json({
+      success: true,
+      data: {
+        templates,
+        count: templates.length,
+      },
+    });
+
+  } catch (error) {
+    console.error('[Master Templates] Database error:', error);
+    return c.json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Failed to fetch master service templates.',
+      },
+    }, 500);
+  }
+});
 
 export default publicServiceRoutes; 
