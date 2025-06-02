@@ -50,10 +50,10 @@ export type ApiErrorCode = typeof API_ERROR_CODES[keyof typeof API_ERROR_CODES];
  */
 export class ApiError extends Error {
   constructor(
-    public code: string,
+    public _code: string,
     message: string,
-    public status: number,
-    public details?: any
+    public _status: number,
+    public _details?: any
   ) {
     super(message);
     this.name = 'ApiError';
@@ -62,22 +62,22 @@ export class ApiError extends Error {
   /**
    * Check if this is a specific error code
    */
-  is(code: ApiErrorCode): boolean {
-    return this.code === code;
+  is(_code: ApiErrorCode): boolean {
+    return this._code === _code;
   }
 
   /**
    * Check if this is a client error (4xx)
    */
   isClientError(): boolean {
-    return this.status >= 400 && this.status < 500;
+    return this._status >= 400 && this._status < 500;
   }
 
   /**
    * Check if this is a server error (5xx)
    */
   isServerError(): boolean {
-    return this.status >= 500;
+    return this._status >= 500;
   }
 
   /**
@@ -98,7 +98,7 @@ export class ApiError extends Error {
    * Get user-friendly error message
    */
   getUserMessage(): string {
-    switch (this.code) {
+    switch (this._code) {
       case API_ERROR_CODES.VALIDATION_ERROR:
         return 'Please check your input and try again.';
       case API_ERROR_CODES.AUTH_ERROR:
@@ -115,5 +115,18 @@ export class ApiError extends Error {
       default:
         return this.message || 'An unexpected error occurred.';
     }
+  }
+
+  // Getter methods to maintain backward compatibility
+  get code(): string {
+    return this._code;
+  }
+
+  get status(): number {
+    return this._status;
+  }
+
+  get details(): any {
+    return this._details;
   }
 } 

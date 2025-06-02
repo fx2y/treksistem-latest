@@ -362,10 +362,8 @@ export default function OrderTrackingPage() {
             variant="outline"
             className="w-full"
             onClick={() => {
-              const message = WhatsAppMessages.userToMitra(orderData.id);
               // For now, we'll use a generic message since we don't have Mitra contact info
               // This would need to be updated when Mitra contact info is available in the API
-              const waMessage = `Hello! I have a question about my Treksistem order ${orderData.id.slice(0, 8)}... from ${orderData.mitraName}. Could you please help me?`;
               // Since we don't have Mitra phone number in the tracking data, 
               // we'll show a toast with instructions
               alert('Untuk menghubungi mitra, silakan gunakan kontak yang tersedia di aplikasi Treksistem atau website resmi.');

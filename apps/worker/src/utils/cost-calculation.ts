@@ -10,7 +10,7 @@
  */
 
 import type { ServiceConfigBase, OrderDetailsBase, AddressDetail } from '@treksistem/shared-types';
-import { calculateHaversineDistance, calculateOrderDistance } from './geo';
+import { calculateOrderDistance } from './geo';
 
 /**
  * Cost breakdown interface for transparency and debugging
@@ -42,8 +42,8 @@ export interface CostBreakdown {
 export class CostCalculationError extends Error {
   constructor(
     message: string,
-    public code: string,
-    public details?: Record<string, unknown>
+    public _code?: string,
+    public _details?: any
   ) {
     super(message);
     this.name = 'CostCalculationError';

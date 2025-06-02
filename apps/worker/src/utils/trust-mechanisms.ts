@@ -35,8 +35,8 @@ export interface TrustMechanismResult {
 export class TrustMechanismError extends Error {
   constructor(
     message: string,
-    public code: string,
-    public details?: Record<string, unknown>
+    public _code?: string,
+    public _details?: any
   ) {
     super(message);
     this.name = 'TrustMechanismError';

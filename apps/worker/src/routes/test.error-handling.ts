@@ -25,14 +25,14 @@ const testErrorRoutes = new Hono<AppContext>();
 /**
  * Test global error handler with generic Error
  */
-testErrorRoutes.get('/generic-error', (c) => {
+testErrorRoutes.get('/generic-error', (_c) => {
   throw new Error('Test generic error for global handler verification');
 });
 
 /**
  * Test Hono HTTPException handling
  */
-testErrorRoutes.get('/http-exception', (c) => {
+testErrorRoutes.get('/http-exception', (_c) => {
   throw new HTTPException(418, { message: 'I am a teapot - HTTP Exception test' });
 });
 
@@ -119,35 +119,35 @@ testErrorRoutes.get('/app-error/:errorType', (c) => {
 /**
  * Test database error handling utility
  */
-testErrorRoutes.get('/database-error/:errorType', (c) => {
-  const errorType = c.req.param('errorType');
+testErrorRoutes.get('/database-error/:errorType', (_c) => {
+  const errorType = _c.req.param('errorType');
 
-  try {
-    switch (errorType) {
-      case 'unique-constraint':
-        const uniqueError = new Error('UNIQUE constraint failed: users.email');
-        handleDatabaseError(uniqueError, 'user creation');
-        break;
-      
-      case 'not-null-constraint':
-        const notNullError = new Error('NOT NULL constraint failed: orders.service_id');
-        handleDatabaseError(notNullError, 'order creation');
-        break;
-      
-      case 'foreign-key-constraint':
-        const fkError = new Error('FOREIGN KEY constraint failed');
-        handleDatabaseError(fkError, 'relationship creation');
-        break;
-      
-      default:
-        const genericDbError = new Error('Database connection timeout');
-        handleDatabaseError(genericDbError, 'generic operation');
+  switch (errorType) {
+    case 'unique-constraint': {
+      const uniqueError = new Error('UNIQUE constraint failed: users.email');
+      handleDatabaseError(uniqueError, 'user creation');
+      break;
     }
-  } catch (error) {
-    throw error; // Re-throw to be caught by global handler
+    
+    case 'not-null-constraint': {
+      const notNullError = new Error('NOT NULL constraint failed: orders.service_id');
+      handleDatabaseError(notNullError, 'order creation');
+      break;
+    }
+    
+    case 'foreign-key-constraint': {
+      const fkError = new Error('FOREIGN KEY constraint failed');
+      handleDatabaseError(fkError, 'relationship creation');
+      break;
+    }
+    
+    default: {
+      const genericDbError = new Error('Database connection timeout');
+      handleDatabaseError(genericDbError, 'generic operation');
+    }
   }
 
-  return c.json({ success: true, message: 'This should not be reached' });
+  return _c.json({ success: true, message: 'This should not be reached' });
 });
 
 /**
@@ -158,21 +158,17 @@ testErrorRoutes.post('/cuid-validation',
     id: z.string(),
     fieldName: z.string().optional(),
   })),
-  (c) => {
-    const { id, fieldName } = c.req.valid('json');
+  (_c) => {
+    const { id, fieldName } = _c.req.valid('json');
     
-    try {
-      validateCuid(id, fieldName || 'ID');
-      return c.json({
-        success: true,
-        data: {
-          message: 'CUID validation passed',
-          validatedId: id,
-        },
-      });
-    } catch (error) {
-      throw error; // Re-throw to be caught by global handler
-    }
+    validateCuid(id, fieldName || 'ID');
+    return _c.json({
+      success: true,
+      data: {
+        message: 'CUID validation passed',
+        validatedId: id,
+      },
+    });
   }
 );
 

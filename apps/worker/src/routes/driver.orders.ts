@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { eq, and, desc, inArray } from 'drizzle-orm';
 import { isCuid } from '@paralleldrive/cuid2';
 import { createId } from '@paralleldrive/cuid2';
-import { orders, services, drivers, mitras, orderEvents } from '@treksistem/db-schema';
+import { orders, orderEvents, drivers } from '@treksistem/db-schema';
 import { OrderStatusSchema } from '@treksistem/shared-types';
 import type { AppContext } from '../types';
 
@@ -630,7 +630,7 @@ driverOrderRoutes.post('/:orderId/add-note',
     const currentDriverId = c.get('currentDriverId') as string;
     const db = c.get('db');
     const orderId = c.req.param('orderId');
-    const { note, eventType } = c.req.valid('json');
+    const { note } = c.req.valid('json');
 
     if (!orderId || !isCuid(orderId)) {
       return c.json({

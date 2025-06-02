@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { eq, and, desc, gte, lte, inArray, sql } from 'drizzle-orm';
+import { eq, and, desc, gte, lte } from 'drizzle-orm';
 import { createId, isCuid } from '@paralleldrive/cuid2';
-import { orders, services, drivers, orderEvents, driverServices } from '@treksistem/db-schema';
+import { orders, orderEvents, drivers, driverServices, services } from '@treksistem/db-schema';
 import { OrderStatusSchema } from '@treksistem/shared-types';
 import { mitraAuth } from '../middleware/auth';
 import type { AppContext } from '../types';
@@ -244,7 +244,6 @@ mitraOrderRoutes.post(
     const { orderId } = c.req.param();
     const { driverId } = c.req.valid('json');
     const mitraId = c.get('currentMitraId')!;
-    const currentUserEmail = c.get('currentUserEmail')!;
     const db = c.get('db');
 
     // Validate orderId format

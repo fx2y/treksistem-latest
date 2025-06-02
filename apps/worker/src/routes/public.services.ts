@@ -4,13 +4,12 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { isCuid } from '@paralleldrive/cuid2';
 import { services, mitras, masterServiceTemplates } from '@treksistem/db-schema';
+import type { AppContext } from '../types';
 import { 
   validateServiceConfig, 
   validatePublicServiceAccess, 
   createPublicServiceResponse 
 } from '../utils/service-config-validator';
-import type { AppContext } from '../types';
-import { sql } from 'drizzle-orm';
 
 const publicServiceRoutes = new Hono<AppContext>();
 

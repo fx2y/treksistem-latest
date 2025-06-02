@@ -18,7 +18,6 @@ import driverOrderRoutes from './routes/driver.orders';
 import testSecurityRoutes from './routes/test.security';
 import testErrorRoutes from './routes/test.error-handling';
 import adminRoutes from './routes/admin';
-import { calculateHaversineDistance, calculateDistance, type Point } from './utils/geo';
 import type { AppContext } from './types';
 
 const app = new Hono<AppContext>();
@@ -85,9 +84,9 @@ app.use('*', securityHeaders());
 app.use('*', usageTrackingMiddleware);
 
 // 7. Global Error Handler (as per RFC-TREK-ERROR-001)
-app.onError((err, c) => {
-  const method = c.req.method;
-  const url = c.req.url;
+app.onError((err, _c) => {
+  const method = _c.req.method;
+  const url = _c.req.url;
   
   // Check if it's a Hono HTTPException
   if (err instanceof Error && 'getResponse' in err && typeof err.getResponse === 'function') {
@@ -105,7 +104,7 @@ app.onError((err, c) => {
       message: err.message,
       details: err.details,
     });
-    return c.json(err.toErrorResponse(), err.statusCode as any);
+    return _c.json(err.toErrorResponse(), err.statusCode as any);
   }
 
   // Default error response structure per RFC-TREK-ERROR-001
@@ -176,12 +175,12 @@ app.onError((err, c) => {
     });
   }
 
-  return c.json(errorResponse, statusCode as any);
+  return _c.json(errorResponse, statusCode as any);
 });
 
 // 8. 404 Handler
-app.notFound((c) => {
-  return c.json({
+app.notFound((_c) => {
+  return _c.json({
     success: false,
     error: {
       code: 'NOT_FOUND',
@@ -232,16 +231,16 @@ app.get('/api/test/cf-access', cfAccessAuth, (c) => {
 });
 
 // Test endpoint to verify error handling
-app.get('/api/test/error', (c) => {
+app.get('/api/test/error', (_c) => {
   throw new Error('Test error for error handling verification');
 });
 
 // Test endpoint to verify validation error handling
 app.post('/api/test/validation', zValidator('json', z.object({
   requiredField: z.string(),
-})), (c) => {
-  const data = c.req.valid('json');
-  return c.json({
+})), (_c) => {
+  const data = _c.req.valid('json');
+  return _c.json({
     success: true,
     data: {
       message: 'Validation passed',

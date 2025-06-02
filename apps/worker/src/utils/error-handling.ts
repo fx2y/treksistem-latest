@@ -45,16 +45,16 @@ export interface ErrorResponse {
 export class AppError extends Error {
   constructor(
     message: string,
-    public code: ErrorCode,
-    public statusCode: number = 500,
-    public details?: any
+    public _code: string,
+    public _statusCode: number = 500,
+    public _details?: any
   ) {
     super(message);
     this.name = 'AppError';
   }
 
   toHTTPException(): HTTPException {
-    return new HTTPException(this.statusCode as any, {
+    return new HTTPException(this._statusCode as any, {
       message: this.message,
     });
   }
@@ -63,9 +63,9 @@ export class AppError extends Error {
     return {
       success: false,
       error: {
-        code: this.code,
+        code: this._code as ErrorCode,
         message: this.message,
-        details: this.details,
+        details: this._details,
       },
     };
   }
@@ -194,9 +194,10 @@ export class Logger {
     });
   }
 
-  static debug(message: string, context?: Record<string, any>): void {
-    const timestamp = new Date().toISOString();
-    console.log(`[DEBUG: ${timestamp}] ${message}`, context ? this.formatContext(context) : '');
+  static debug(message: string, _args?: any): void {
+    if (process.env.NODE_ENV === 'development') {
+      console.debug(`[DEBUG] ${message}`, _args || '');
+    }
   }
 }
 
@@ -227,8 +228,8 @@ export function handleDatabaseError(error: any, operation: string): never {
 export function asyncHandler<T extends any[], R>(
   fn: (...args: T) => Promise<R>
 ) {
-  return (...args: T): Promise<R> => {
-    return Promise.resolve(fn(...args)).catch((error) => {
+  return (..._args: T): Promise<R> => {
+    return Promise.resolve(fn(..._args)).catch((error) => {
       if (error instanceof AppError) {
         throw error;
       }
