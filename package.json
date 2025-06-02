@@ -17,6 +17,7 @@
     "lint": "turbo lint",
     "clean": "turbo clean",
     "type-check": "turbo type-check",
+    "verify-setup": "./scripts/verify-dev-setup.sh",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
     "deploy:dev": "wrangler deploy --env development",

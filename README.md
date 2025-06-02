@@ -23,13 +23,14 @@ This document outlines the tactical specifics of the codebase, development pract
     *   **Language:** TypeScript (strict mode).
     *   **UI Components:** Shadcn/ui (built on Radix UI & Tailwind CSS).
     *   **Server State Management:** TanStack Query.
+    *   **Global State Management:** Zustand (confirmed for fe-mitra-admin auth state).
     *   **Forms:** React Hook Form with Zod resolver.
 *   **Monorepo Management:** Turborepo with `pnpm` as the package manager.
 
-## 3. Monorepo Structure (`treksistem-monorepo/`)
+## 3. Monorepo Structure (`treksistem-latest/`)
 
 ```
-treksistem-monorepo/
+treksistem-latest/
 ├── apps/
 │   ├── worker/             # Cloudflare Worker: Hono API backend. Entry: src/index.ts
 │   ├── fe-mitra-admin/     # Vite/React SPA: Mitra Admin Portal. Entry: src/main.tsx
@@ -40,7 +41,9 @@ treksistem-monorepo/
 │   ├── shared-types/       # Zod schemas & inferred TypeScript types shared across apps.
 │   ├── ui-core/            # (Currently minimal) Shared, non-Shadcn React components or hooks.
 │   └── eslint-config-custom/ # Shared ESLint configuration.
+├── migrations/             # Database migration files (copied from packages/db-schema)
 ├── turbo.json
+├── wrangler.jsonc          # Cloudflare Worker configuration
 └── package.json
 ```
 
@@ -76,7 +79,7 @@ treksistem-monorepo/
 *   **Environment Bindings (`Env` interface in `src/index.ts`):**
     *   `TREKSISTEM_DB`: D1 database binding.
     *   `TREKSISTEM_R2`: R2 bucket binding.
-    *   (Future) KV/Secrets if needed.
+    *   `WORKER_ENV`: Environment variable (production/staging/development).
 *   **Logging:**
     *   Use `console.log()`, `console.warn()`, `console.error()` for logging. These are captured by Cloudflare Workers logging.
     *   Log key events, errors, and D1 query issues. Avoid logging raw PII unless specifically for debugging with redaction plans.
@@ -85,14 +88,14 @@ treksistem-monorepo/
 
 *   **Schema Definition:** All table schemas defined in `packages/db-schema/src/schema.ts` using Drizzle ORM syntax.
 *   **Migrations:** Managed by Drizzle Kit.
-    *   Generate: `pnpm --filter db-schema drizzle-kit generate:sqlite`
-    *   Apply (local): `wrangler d1 migrations apply <DB_NAME> --local`
-    *   Apply (remote): `wrangler d1 migrations apply <DB_NAME>`
+    *   Generate: `pnpm --filter db-schema db:generate`
+    *   Apply (local): `pnpm --filter db-schema db:migrate:local`
+    *   Apply (remote): `pnpm --filter db-schema db:migrate:remote`
 *   **Naming Conventions:**
-    *   Tables: `snake_case`, plural (e.g., `mitra_services`).
+    *   Tables: `snake_case`, plural (e.g., `mitras`, `services`, `orders`).
     *   Columns: `snake_case` (e.g., `created_at`, `service_id`).
 *   **Primary Keys:**
-    *   `id`: Typically `text('id').primaryKey()`. Values are CUIDs or NanoIDs generated at the application layer (worker) upon record creation.
+    *   `id`: Typically `text('id').primaryKey()`. Values are CUIDs generated at the application layer (worker) upon record creation.
 *   **JSON Fields:**
     *   Use `text('config_json', { mode: 'json' })`.
     *   Typed and validated at the application layer using Zod schemas (defined in `shared-types`).
@@ -113,7 +116,7 @@ treksistem-monorepo/
 *   **State Management:**
     *   **Server State:** TanStack Query (`useQuery`, `useMutation`) for all API interactions. Define query keys systematically.
     *   **Local UI State:** React `useState`, `useReducer`.
-    *   **Global UI State:** Avoid complex global state managers like Redux for MVP. If simple global state is needed (e.g., authenticated user profile), prefer Zustand, Jotai, or React Context. *Specify if one is chosen.* (Assume React Context with TanStack Query for user profile for now).
+    *   **Global UI State:** Zustand for auth/profile state in fe-mitra-admin. React Context for simpler global state in other apps.
 *   **Styling:**
     *   **Shadcn/ui:** Primary component library. Components are typically copied into the project (`src/components/ui`) and can be customized there.
     *   **Tailwind CSS:** Used by Shadcn/ui. Custom styles via `tailwind.config.js` and utility classes.
@@ -140,11 +143,13 @@ treksistem-monorepo/
 ## 7. `apps/fe-mitra-admin` Specifics
 
 *   **Authentication:** Checks for CF Access session on load. Redirects/prompts for login via CF Access if unauthenticated. Fetches Mitra profile using `/api/mitra/profile`.
+*   **State Management:** Zustand store for auth/profile state management.
 *   **Dynamic Forms:** The service configuration form (`services.configJson`) is a key complex component. It should dynamically render fields based on the selected `serviceType` and the structure defined in `RFC-TREK-CONFIG-001` and `shared-types`.
 *   **UI Patterns:**
     *   TanStack Table for data grids (services, drivers, orders).
     *   Shadcn `Dialog` for modals (create/edit forms).
     *   Shadcn `Sheet` for side panels if needed.
+*   **Port:** Runs on `http://localhost:5173` in development.
 
 ## 8. `apps/fe-driver-view` Specifics
 
@@ -152,11 +157,13 @@ treksistem-monorepo/
 *   **Access:** Via unique URL containing `driverId` (e.g., `/driver-view/:driverId`). The app extracts `driverId` from the URL to make API calls.
 *   **File Upload:** Handles `POST /api/driver/:driverId/orders/:orderId/request-upload-url` to get R2 pre-signed URL, then direct PUT to R2, followed by confirmation to backend.
 *   **Offline/Network:** Basic handling for network request failures. Consider optimistic updates with caution for MVP.
+*   **Port:** Runs on `http://localhost:5175` in development.
 
 ## 9. `apps/fe-user-public` Specifics
 
 *   **Order Placement Form:** Dynamically generates fields based on `service.configJson` fetched from `/api/public/services/:serviceId/config`.
 *   **Tracking Page:** Fetches data from `/api/orders/:orderId/track`. Displays `orderEvents` timeline. Implements basic polling or manual refresh for updates.
+*   **Port:** Runs on `http://localhost:5174` in development.
 
 ## 10. Shared Code (`packages/`)
 
@@ -206,9 +213,9 @@ treksistem-monorepo/
     *   Requires at least one review (if team > 1).
     *   CI checks (lint, build, tests) must pass.
 *   **Local Development:**
-    *   Root: `pnpm install`, then `turbo dev`.
-    *   Worker: `wrangler dev --local --persist` (from `apps/worker`).
-    *   Frontends: `pnpm --filter <app-name> dev` (e.g., `pnpm --filter fe-mitra-admin dev`).
+    *   Root: `pnpm install`, then `pnpm turbo dev`.
+    *   Worker: `pnpm dev` (from `apps/worker`) - runs `wrangler dev --local --persist`.
+    *   Frontends: `pnpm dev` (from respective app directories).
     *   Vite proxy configured in frontend `vite.config.ts` to point `/api` to local worker.
 *   **Testing Strategy:**
     *   **Unit Tests:** Vitest for utility functions, complex logic in backend/frontend.
@@ -222,15 +229,35 @@ treksistem-monorepo/
 *   **Frontends (`apps/fe-*`):** Deployed to Cloudflare Pages, connected to the Git repository. Auto-deploys on pushes to `main` (or `develop` for staging).
 *   **D1 Migrations (`packages/db-schema`):** Applied manually via Wrangler CLI or integrated into deployment script with caution: `wrangler d1 migrations apply TREKSISTEM_DB`.
 *   **CI/CD:** GitHub Actions for linting, building, (testing), and deploying. Secrets (Cloudflare API token) managed via GitHub secrets.
+*   **Environments:**
+    *   **Production:** `wrangler.jsonc` default configuration
+    *   **Staging:** `wrangler.jsonc` env.staging configuration
+    *   **Development:** `wrangler.jsonc` env.development configuration
 
-## 14. Key Architectural Decisions & Trade-offs (Recap)
+## 14. Key Architectural Decisions & Trade-offs
 
 *   **Low Cost:** Drives technology choices (Cloudflare free tiers, no paid APIs like WA Business or Google Maps for routing initially).
 *   **User-Initiated Notifications:** Relies on WA deep links and web UI polling instead of automated push/SMS.
 *   **Mitra Configurability:** Extensive use of `services.configJson` allows Mitras to define diverse service models. This means robust parsing and validation of this JSON is critical.
 *   **OSM/Open Geo Data:** Preferred for mapping and routing to avoid costs. Haversine for MVP distance, OSRM/GraphHopper as future enhancement if cost-effective.
+*   **Driver Authentication:** CUID-based URL access for MVP simplicity, with plans for proper tokens post-MVP.
+*   **R2 Public Access:** Direct public access for images in MVP, with plans for proxied endpoint later.
 
-## 15. How to Interact with This AI Assistant
+## 15. Current Implementation Status
+
+Based on the context summary, the following are implemented:
+*   ✅ Core monorepo structure with Turborepo and pnpm
+*   ✅ Backend worker with Hono framework and modular routing
+*   ✅ Database schema with Drizzle ORM and D1 integration
+*   ✅ Shared types package with Zod schemas
+*   ✅ Frontend applications with Vite, React, TypeScript, and Shadcn/ui
+*   ✅ Authentication systems (CF Access for Mitra, CUID for Driver)
+*   ✅ Order lifecycle management with status tracking
+*   ✅ Dynamic service configuration system
+*   ✅ R2 integration for file uploads
+*   ✅ Development workflow with proper scripts and configurations
+
+## 16. How to Interact with This AI Assistant
 
 *   **Adherence:** When generating code, strictly adhere to the standards, conventions, and patterns outlined in this document.
 *   **Context:** Assume full context from the project's RFCs and Implementation Specifications. Refer to them if specific details are needed beyond this `README.MD`.
@@ -239,3 +266,7 @@ treksistem-monorepo/
 *   **Clarity:** If a request is ambiguous, ask for clarification, referencing specific sections of this document or related RFCs.
 *   **File Paths:** When referring to or generating code for specific parts of the project, use the monorepo paths (e.g., `apps/worker/src/routes/orders.ts`).
 *   **Tactical Focus:** Provide specific, actionable code snippets or instructions rather than high-level strategic advice, unless specifically asked.
+*   **Modularity:** Break large solutions into logical, reusable parts as per user preferences.
+*   **Developer Experience:** Prioritize developer experience and operational excellence in all suggestions.
+*   **Accuracy:** Be accurate and thorough, considering new technologies and contrarian ideas when appropriate.
+*   **Code Quality:** Return complete, functional solutions when needed, prioritizing maintainability and observability. 

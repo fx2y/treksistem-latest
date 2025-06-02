@@ -1,0 +1,14 @@
+# Example environment variables for local development
+# Copy this file to .dev.vars and update values as needed
+
+# Worker Environment (automatically set by wrangler.jsonc, but can be overridden)
+# WORKER_ENV=development
+
+# Optional: Custom configuration for local development
+# Add any local-only environment variables here if needed
+
+# Note: Most configuration is handled through wrangler.jsonc bindings
+# - TREKSISTEM_DB: D1 database binding (configured in wrangler.jsonc)
+# - TREKSISTEM_R2: R2 bucket binding (configured in wrangler.jsonc)
+
+# For production secrets, use `wrangler secret put <KEY>` instead of this file 

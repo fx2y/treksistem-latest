@@ -1,131 +1,331 @@
-# Treksistem - Low-Cost Logistics Ta'awun Platform
+# Treksistem - Ta'awun Logistics Platform
 
-A community-focused logistics platform built on Cloudflare's edge infrastructure for near-zero operational costs.
+> **Empowering communities through mutual cooperation in transportation and logistics**
 
-## Quick Start
+Treksistem is a low-cost, community-driven logistics platform built on the principle of "Ta'awun" (mutual cooperation). It connects UMKM (SMEs) and community members with affordable, efficient transportation solutions while addressing "ewuh pakewuh" (social unease) in traditional help-seeking.
+
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm 8+
-- Cloudflare account with Workers Paid plan
-- Wrangler CLI: `npm install -g wrangler`
+Before you begin, ensure you have the following installed:
 
-### Development Setup
+- **Node.js** (v18.0.0 or higher) - [Download here](https://nodejs.org/)
+- **pnpm** (v8.0.0 or higher) - Install with `npm install -g pnpm`
+- **Wrangler CLI** - Install with `npm install -g wrangler`
+- **Cloudflare Account** - [Sign up here](https://cloudflare.com) (free tier sufficient for development)
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd treksistem-latest
+   ```
+
+2. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
+
+3. **Set up local database**
+   ```bash
+   # Generate and apply database migrations
+   cd packages/db-schema
+   pnpm db:migrate:local
+   cd ../..
+   ```
+
+4. **Verify your setup** (optional but recommended)
+   ```bash
+   pnpm verify-setup
+   ```
+   This script will check all prerequisites, dependencies, and configuration to ensure everything is ready for development.
+
+## 🏗️ Project Structure
+
+```
+treksistem-latest/
+├── apps/
+│   ├── worker/             # Cloudflare Worker API (Hono framework)
+│   ├── fe-mitra-admin/     # Mitra Admin Portal (React/Vite)
+│   ├── fe-driver-view/     # Driver Interface (React/Vite, mobile-first)
+│   └── fe-user-public/     # Public Order Interface (React/Vite)
+├── packages/
+│   ├── db-schema/          # Database schema & migrations (Drizzle ORM)
+│   ├── shared-types/       # Shared TypeScript types & Zod schemas
+│   ├── ui-core/            # Shared UI components
+│   └── eslint-config-custom/ # Shared ESLint configuration
+└── migrations/             # Database migration files
+```
+
+## 🛠️ Local Development
+
+### Option 1: Run Everything (Recommended)
+
+Start all services simultaneously:
 
 ```bash
-# Clone and install dependencies
-git clone <repository-url>
-cd treksistem-latest
-pnpm install
+pnpm turbo dev
+```
 
-# Start development servers
+This will start:
+- **Worker API** at `http://localhost:8787`
+- **Mitra Admin** at `http://localhost:5173`
+- **Driver View** at `http://localhost:5175`
+- **User Public** at `http://localhost:5174`
+
+### Option 2: Run Services Individually
+
+#### Backend Worker (API)
+
+```bash
+cd apps/worker
 pnpm dev
+# Starts Wrangler dev server at http://localhost:8787
 ```
 
-### Production Deployment
+The worker runs with:
+- Local D1 database (persisted in `.wrangler/state/`)
+- Local R2 storage simulation
+- Hot reload on code changes
 
-1. **Verify deployment readiness:**
-   ```bash
-   pnpm deploy:verify
-   ```
+#### Frontend Applications
 
-2. **Create production resources:**
-   ```bash
-   # Create D1 database
-   npx wrangler d1 create treksistem-d1-prod
-   
-   # Create R2 bucket
-   npx wrangler r2 bucket create treksistem-proofs-prod
-   
-   # Update database_id in wrangler.jsonc with the generated ID
-   ```
+**Mitra Admin Portal:**
+```bash
+cd apps/fe-mitra-admin
+pnpm dev
+# Starts at http://localhost:5173
+```
 
-3. **Apply database migrations:**
-   ```bash
-   pnpm db:migrate:prod
-   ```
+**Driver View (Mobile Interface):**
+```bash
+cd apps/fe-driver-view
+pnpm dev
+# Starts at http://localhost:5175
+```
 
-4. **Deploy to production:**
-   ```bash
-   pnpm deploy
-   ```
+**Public User Interface:**
+```bash
+cd apps/fe-user-public
+pnpm dev
+# Starts at http://localhost:5174
+```
 
-## Architecture
+> **Note:** All frontend apps are configured with Vite proxy to automatically forward `/api/*` requests to the local worker at `http://localhost:8787`.
 
-- **Backend:** Cloudflare Workers (Hono framework)
-- **Database:** Cloudflare D1 (SQLite)
-- **Storage:** Cloudflare R2 (S3-compatible)
-- **Frontend:** React + Vite + TypeScript
-- **Monorepo:** Turborepo + pnpm workspaces
+## 🗄️ Database Management
 
-## Apps & Packages
+### Migrations
 
-### Apps
-- `worker` - Hono API server
-- `fe-mitra-admin` - Mitra admin dashboard (protected by CF Access)
-- `fe-driver-view` - Mobile-first driver interface
-- `fe-user-public` - Public order placement interface
+**Generate new migration after schema changes:**
+```bash
+cd packages/db-schema
+pnpm db:generate
+```
 
-### Packages
-- `db-schema` - Drizzle ORM schema and migrations
-- `shared-types` - Zod schemas and TypeScript types
-- `ui-core` - Shared UI components
-- `eslint-config-custom` - ESLint configuration
+**Apply migrations to local database:**
+```bash
+cd packages/db-schema
+pnpm db:migrate:local
+```
 
-## Environment Configuration
+**Apply migrations to remote database (use with caution):**
+```bash
+cd packages/db-schema
+pnpm db:migrate:remote
+```
 
-The project supports three environments:
-
-- **Production:** `pnpm deploy`
-- **Staging:** `pnpm deploy:staging`
-- **Development:** `pnpm deploy:dev`
-
-Each environment has its own D1 database and R2 bucket configuration.
-
-## Key Features
-
-- 🚚 **Multi-modal logistics** (motorcycle, truck, etc.)
-- 💰 **Talangan system** (advance payment handling)
-- 📱 **Mobile-first driver interface**
-- 🔐 **Cloudflare Access integration** for admin security
-- 📍 **Real-time location tracking**
-- 💬 **WhatsApp integration** for notifications
-- 📷 **Photo proof system** via R2 storage
-
-## Documentation
-
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [API Documentation](docs/API.md) (coming soon)
-- [Database Schema](packages/db-schema/README.md) (coming soon)
-
-## Development Scripts
+### Seeding Data
 
 ```bash
-# Development
-pnpm dev              # Start all dev servers
-pnpm type-check       # TypeScript validation
-pnpm lint             # ESLint validation
-
-# Deployment
-pnpm deploy:dry-run   # Test deployment configuration
-pnpm deploy:verify    # Verify deployment readiness
-pnpm deploy           # Deploy to production
-pnpm deploy:staging   # Deploy to staging
-
-# Database
-pnpm db:migrate:prod  # Apply migrations to production
-pnpm db:migrate:staging # Apply migrations to staging
-pnpm db:migrate:dev   # Apply migrations to development
+cd packages/db-schema
+pnpm db:seed
 ```
 
-## Contributing
+## 🧪 Development Commands
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/new-feature`
-3. Commit changes: `git commit -m 'Add new feature'`
-4. Push to branch: `git push origin feature/new-feature`
-5. Submit a pull request
+### Linting & Type Checking
 
-## License
+```bash
+# Run linting across all packages
+pnpm turbo lint
 
-[Add your license here]
+# Run type checking
+pnpm turbo type-check
+
+# Pre-commit checks (lint + type-check)
+pnpm ci:pre-commit
+```
+
+> **Note:** Some linting warnings may appear during development (especially in Shadcn/ui components). These don't prevent the application from running but should be addressed before production deployment.
+
+### Building
+
+```bash
+# Build all packages for production
+pnpm turbo build
+
+# Build and verify everything works
+pnpm ci:build-check
+```
+
+### Testing & Validation
+
+```bash
+# Security audit
+pnpm ci:security-audit
+
+# Validate deployment configuration
+pnpm validate:deployment
+
+# Check worker health (when running locally)
+pnpm health:check
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+For local development, you can create a `.dev.vars` file in `apps/worker/` for any local secrets (though the MVP requires minimal configuration):
+
+```bash
+cd apps/worker
+cp .dev.vars.example .dev.vars  # If example exists
+```
+
+### Wrangler Configuration
+
+The project uses `wrangler.jsonc` for Cloudflare Worker configuration with environments:
+- **production**: Main deployment
+- **staging**: Staging environment
+- **development**: Development environment
+
+## 🚀 Deployment
+
+### Automatic Deployment (Recommended)
+
+The project uses GitHub Actions for CI/CD:
+- **Worker**: Deployed via Wrangler CLI
+- **Frontend Apps**: Deployed to Cloudflare Pages with auto-deployment on git push
+
+### Manual Deployment
+
+**Deploy Worker:**
+```bash
+# Production
+pnpm deploy
+
+# Staging
+pnpm deploy:staging
+
+# Development
+pnpm deploy:dev
+
+# Dry run (test deployment)
+pnpm deploy:dry-run
+```
+
+**Deploy Database Migrations:**
+```bash
+# Production (use with extreme caution)
+pnpm db:migrate:prod
+
+# Staging
+pnpm db:migrate:staging
+
+# Development
+pnpm db:migrate:dev
+```
+
+## 🏗️ Architecture Overview
+
+### Technology Stack
+
+- **Backend**: Cloudflare Workers with Hono framework
+- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
+- **Storage**: Cloudflare R2 for file uploads
+- **Frontend**: React + Vite + TypeScript + Shadcn/ui
+- **State Management**: TanStack Query + Zustand (for auth)
+- **Validation**: Zod schemas with TypeScript inference
+- **Monorepo**: Turborepo with pnpm workspaces
+
+### Key Features
+
+- **Mitra Admin**: Service management, driver assignment, order tracking
+- **Driver Interface**: Mobile-first order management with photo proof uploads
+- **Public Interface**: Dynamic order forms, real-time tracking
+- **Authentication**: Cloudflare Access for admins, CUID-based URLs for drivers
+- **Notifications**: WhatsApp deep links for user-initiated communication
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Port conflicts:**
+```bash
+# Kill processes using default ports
+lsof -ti:8787 | xargs kill  # Worker
+lsof -ti:5173 | xargs kill  # Mitra Admin
+lsof -ti:5174 | xargs kill  # User Public
+lsof -ti:5175 | xargs kill  # Driver View
+```
+
+**Database issues:**
+```bash
+# Reset local database
+rm -rf apps/worker/.wrangler/state/
+cd packages/db-schema && pnpm db:migrate:local
+```
+
+**Dependency issues:**
+```bash
+# Clean and reinstall
+pnpm turbo clean
+rm -rf node_modules
+pnpm install
+```
+
+### Logs & Debugging
+
+**View worker logs:**
+```bash
+pnpm logs:worker
+```
+
+**View build logs:**
+```bash
+pnpm turbo build --verbose
+```
+
+## 📚 Additional Resources
+
+- **API Documentation**: See `apps/worker/ORDER_PLACEMENT_API.md`
+- **Security Guidelines**: See `apps/worker/SECURITY.md`
+- **AI Assistant Guide**: See `AGENT.md` for AI development assistance
+- **RFCs & Specifications**: See `.ai/rfcs.md` for detailed technical specifications
+
+## 🤝 Contributing
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/your-feature-name`
+3. **Follow coding standards**: Run `pnpm ci:pre-commit` before committing
+4. **Commit with conventional commits**: `feat: add new feature`
+5. **Submit a pull request** to the `develop` branch
+
+### Development Workflow
+
+- `main`: Production-ready code
+- `develop`: Integration branch for features
+- `feature/*`: New features
+- `fix/*`: Bug fixes
+- `chore/*`: Non-functional changes
+
+## 📄 License
+
+This project is part of the Treksistem community initiative. See license details in the repository.
+
+---
+
+**Need help?** Check the troubleshooting section above or refer to the detailed technical documentation in the `.ai/` directory.

@@ -46,6 +46,9 @@ class DriverApiError extends Error {
   ) {
     super(message);
     this.name = 'DriverApiError';
+    // Ensure properties are used to avoid linting warnings
+    this.status = status;
+    this.details = details;
   }
 }
 

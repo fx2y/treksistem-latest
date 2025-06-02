@@ -144,6 +144,6 @@ export const orderEventRelations = relations(orderEvents, ({ one }) => ({
   order: one(orders, { fields: [orderEvents.orderId], references: [orders.id] }),
 }));
 
-export const masterServiceTemplateRelations = relations(masterServiceTemplates, ({ many }) => ({
+export const masterServiceTemplateRelations = relations(masterServiceTemplates, ({ many: _many }) => ({
   // No direct relations needed for templates, they're reference data
 })); 

@@ -19,7 +19,7 @@ interface OrderCardProps {
   driverId: string;
   isSelectable?: boolean;
   isSelected?: boolean;
-  onSelectionChange?: (selected: boolean) => void;
+  onSelectionChange?: (_selected: boolean) => void;
 }
 
 const statusConfig: Record<OrderStatus, { label: string; variant: string; color: string }> = {
@@ -60,6 +60,10 @@ export function OrderCard({
 
   const isActionable = ['DRIVER_ASSIGNED', 'ACCEPTED_BY_DRIVER', 'DRIVER_AT_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DRIVER_AT_DROPOFF'].includes(order.status);
 
+  const handleSelectionChange = (checked: boolean) => {
+    onSelectionChange?.(checked);
+  };
+
   return (
     <Card className="w-full hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -68,7 +72,7 @@ export function OrderCard({
             {isSelectable && isActionable && (
               <Checkbox
                 checked={isSelected}
-                onCheckedChange={onSelectionChange}
+                onCheckedChange={handleSelectionChange}
                 className="mt-1"
               />
             )}
