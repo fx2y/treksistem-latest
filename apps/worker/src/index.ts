@@ -7,11 +7,13 @@ import { createId } from '@paralleldrive/cuid2';
 import { getDrizzleClient } from '@treksistem/db-schema';
 import { sql } from 'drizzle-orm';
 import { cfAccessAuth } from './middleware/auth';
+import { securityHeaders } from './middleware/security-headers';
 import mitraRoutes from './routes/mitra';
 import mitraOrderRoutes from './routes/mitra.orders';
 import publicServiceRoutes from './routes/public.services';
 import orderPlacementRoutes from './routes/orders.placement';
 import driverOrderRoutes from './routes/driver.orders';
+import testSecurityRoutes from './routes/test.security';
 import { calculateHaversineDistance, calculateDistance, type Point } from './utils/geo';
 import type { AppContext } from './types';
 
@@ -72,7 +74,10 @@ app.use('*', async (c, next) => {
   console.log(`[${new Date().toISOString()}] ${method} ${url} - ${status} (${duration}ms)`);
 });
 
-// 5. Global Error Handler (as per RFC-TREK-ERROR-001)
+// 5. Security Headers Middleware
+app.use('*', securityHeaders());
+
+// 6. Global Error Handler (as per RFC-TREK-ERROR-001)
 app.onError((err, c) => {
   console.error(`[ERROR: ${c.req.method} ${c.req.url}]`, err);
   
@@ -118,7 +123,7 @@ app.onError((err, c) => {
   return c.json(errorResponse, statusCode as any);
 });
 
-// 6. 404 Handler
+// 7. 404 Handler
 app.notFound((c) => {
   return c.json({
     success: false,
@@ -225,6 +230,9 @@ app.get('/api/test/db', async (c) => {
     }, 500);
   }
 });
+
+// Security test routes
+app.route('/api/test/security', testSecurityRoutes);
 
 // Note: Geo distance calculation test endpoints were removed after successful verification
 // The geo utility is available via import: { calculateHaversineDistance, calculateDistance } from './utils/geo'

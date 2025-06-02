@@ -1,14 +1,92 @@
-# Treksistem Worker API
+# Treksistem Worker
 
-This is the backend API for the Treksistem logistics platform, built with Hono on Cloudflare Workers.
+Cloudflare Worker for the Treksistem logistics platform backend API.
+
+## Features
+
+### Security Implementation
+- **Standard Security Headers**: Comprehensive security headers including CSP, X-Frame-Options, X-Content-Type-Options, and Referrer-Policy
+- **Content Security Policy**: Restrictive API-focused CSP to prevent XSS and injection attacks
+- **HSTS Ready**: Strict Transport Security configuration (commented out, enable when ready for full HTTPS)
+- **Security Monitoring**: Built-in endpoints for security configuration verification and auditing
+
+### Public API
+- **Service Configuration API**: Public endpoint for fetching service configurations (`GET /api/public/services/:serviceId/config`)
+- **Input Validation**: CUID format validation and schema validation
+- **Access Control**: Only exposes public services (`PUBLIC_3RD_PARTY` model)
+- **Data Filtering**: Returns only publicly safe information
+
+### Core Features
+- **Hono Framework**: Modern web framework for Cloudflare Workers
+- **D1 Database**: Drizzle ORM integration with Cloudflare D1
+- **Error Handling**: Consistent RFC-compliant error responses
+- **CORS Support**: Configurable CORS for frontend applications
+- **Request Logging**: Structured request/response logging
+
+## API Endpoints
+
+### Public Endpoints (No Authentication)
+- `GET /api/health` - Health check
+- `GET /api/public/services/:serviceId/config` - Service configuration for order forms
+- `POST /api/orders` - Order placement
+
+### Protected Endpoints (Cloudflare Access)
+- `GET /api/mitra/*` - Mitra admin operations
+- `GET /api/mitra/orders/*` - Mitra order management
+
+### Driver Endpoints (Path-based Auth)
+- `GET /api/driver/:driverId/orders` - Driver order operations
+
+### Test/Monitoring Endpoints
+- `GET /api/test/security/headers` - Security headers verification
+- `GET /api/test/security/security-audit` - Comprehensive security audit
+- `GET /api/test/security/csp-test` - CSP testing
+- `GET /api/test/db` - Database connection test
+- `GET /api/test/cuid` - CUID generation test
+
+## Development
+
+```bash
+# Start development server
+pnpm --filter worker dev
+
+# Deploy to Cloudflare
+pnpm --filter worker deploy
+```
+
+## Security
+
+See [SECURITY.md](./SECURITY.md) for detailed security implementation documentation.
 
 ## Architecture
 
-- **Runtime**: Cloudflare Workers
-- **Framework**: Hono.js
-- **Database**: Cloudflare D1 (SQLite) with Drizzle ORM
-- **Authentication**: Cloudflare Access
-- **Storage**: Cloudflare R2 (for file uploads)
+### Middleware Stack
+1. CORS configuration
+2. Pretty JSON formatting
+3. Drizzle client initialization
+4. Request logging
+5. **Security headers**
+6. Error handling
+7. 404 handling
+
+### Modular Design
+- `middleware/` - Reusable middleware functions
+- `routes/` - API route handlers
+- `utils/` - Utility functions and validators
+- `types/` - TypeScript type definitions
+
+## Environment Variables
+
+- `TREKSISTEM_DB` - D1 Database binding
+- `TREKSISTEM_R2` - R2 Storage binding
+- `WORKER_ENV` - Environment identifier
+
+## Compliance
+
+- ✅ RFC-TREK-SEC-HEADERS-001 (Security Headers)
+- ✅ RFC-TREK-API-PUBLIC-SVC-CONFIG-001 (Public Service Config API)
+- ✅ RFC-TREK-ERROR-001 (Error Handling)
+- ⚠️ OWASP Security Headers (Partially compliant - HSTS pending)
 
 ## Authentication & Authorization
 
@@ -26,27 +104,6 @@ The API implements a two-layer security model following RFC-TREK-AUTH-001:
 - Maps authenticated email to Mitra records via `mitras.owner_user_id`
 - Ensures users can only access their own Mitra's resources
 - Sets `currentMitraId` in request context
-
-## API Endpoints
-
-### Health & Testing
-
-- `GET /api/health` - Service health check
-- `GET /api/test/cf-access` - Test CF Access authentication
-- `GET /api/test/error` - Test error handling
-- `POST /api/test/validation` - Test request validation
-- `GET /api/test/cuid` - Test CUID generation
-- `GET /api/test/db` - Test database connection
-
-### Mitra Admin (Protected)
-
-All endpoints require Cloudflare Access authentication:
-
-- `GET /api/mitra/profile` - Get current Mitra profile
-- `PUT /api/mitra/profile` - Update Mitra profile
-- `GET /api/mitra/services` - List Mitra's services
-- `GET /api/mitra/drivers` - List Mitra's drivers
-- `GET /api/mitra/auth/test` - Test authentication & authorization
 
 ## Development Setup
 

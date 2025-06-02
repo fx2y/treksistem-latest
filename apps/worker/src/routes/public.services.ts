@@ -1,10 +1,14 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { isCuid } from '@paralleldrive/cuid2';
 import { services, mitras } from '@treksistem/db-schema';
-import { ServiceConfigBaseSchema } from '@treksistem/shared-types';
+import { 
+  validateServiceConfig, 
+  validatePublicServiceAccess, 
+  createPublicServiceResponse 
+} from '../utils/service-config-validator';
 import type { AppContext } from '../types';
 
 const publicServiceRoutes = new Hono<AppContext>();
@@ -58,10 +62,7 @@ publicServiceRoutes.get(
         })
         .from(services)
         .innerJoin(mitras, eq(services.mitraId, mitras.id))
-        .where(and(
-          eq(services.id, serviceId),
-          eq(services.isActive, true)
-        ))
+        .where(eq(services.id, serviceId))
         .limit(1);
 
       if (result.length === 0) {
@@ -76,24 +77,23 @@ publicServiceRoutes.get(
 
       const serviceData = result[0];
 
-      // Parse and validate the configJson
-      let parsedConfig;
-      try {
-        // The configJson is already parsed by Drizzle due to mode: 'json'
-        parsedConfig = ServiceConfigBaseSchema.parse(serviceData.configJson);
-      } catch (parseError) {
-        console.error('[Public Service Config] Invalid configJson for service:', serviceId, parseError);
+      // Validate the configJson using the modular validator
+      const configValidation = validateServiceConfig(serviceData.configJson, serviceId);
+      
+      if (!configValidation.success) {
         return c.json({
           success: false,
           error: {
-            code: 'INVALID_CONFIG',
+            code: 'INTERNAL_ERROR',
             message: 'Service configuration is invalid.',
           },
         }, 500);
       }
 
-      // Check if service is public (only PUBLIC_3RD_PARTY services should be exposed)
-      if (parsedConfig.modelBisnis !== 'PUBLIC_3RD_PARTY') {
+      // Check if service is accessible via public API
+      const accessValidation = validatePublicServiceAccess(serviceData.isActive, configValidation.data);
+      
+      if (!accessValidation.isValid) {
         return c.json({
           success: false,
           error: {
@@ -103,17 +103,10 @@ publicServiceRoutes.get(
         }, 404);
       }
 
-      // Return only publicly safe information
+      // Return safely formatted public response
       return c.json({
         success: true,
-        data: {
-          serviceId: serviceData.serviceId,
-          name: serviceData.serviceName,
-          serviceTypeKey: serviceData.serviceTypeKey,
-          mitraName: serviceData.mitraName,
-          configJson: parsedConfig,
-          isActive: serviceData.isActive,
-        },
+        data: createPublicServiceResponse(serviceData, configValidation.data),
       });
 
     } catch (error) {
