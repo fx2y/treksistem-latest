@@ -1,0 +1,69 @@
+name: Reset Staging Demo Data
+
+on:
+  schedule:
+    # Reset demo data every day at 2 AM UTC (9 AM WIB)
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      reason:
+        description: 'Reason for manual reset'
+        required: false
+        default: 'Manual reset requested'
+
+jobs:
+  reset-demo-data:
+    name: Reset Demo Data in Staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Wrangler
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Generate demo reset SQL
+        run: |
+          cd packages/db-schema/scripts
+          npx tsx reset-staging-demo.ts
+
+      - name: Apply demo reset to staging D1
+        run: |
+          wrangler d1 execute TREKSISTEM_DB --env staging --remote --file=seed-demo-reset.sql
+
+      - name: Verify demo data
+        run: |
+          echo "Verifying demo data was reset successfully..."
+          wrangler d1 execute TREKSISTEM_DB --env staging --remote --command="SELECT COUNT(*) as mitra_count FROM mitras WHERE owner_user_id = 'demo@treksistem.sandbox';"
+          wrangler d1 execute TREKSISTEM_DB --env staging --remote --command="SELECT COUNT(*) as service_count FROM services WHERE mitra_id IN (SELECT id FROM mitras WHERE owner_user_id = 'demo@treksistem.sandbox');"
+          wrangler d1 execute TREKSISTEM_DB --env staging --remote --command="SELECT COUNT(*) as driver_count FROM drivers WHERE mitra_id IN (SELECT id FROM mitras WHERE owner_user_id = 'demo@treksistem.sandbox');"
+
+      - name: Cleanup generated files
+        run: |
+          rm -f seed-demo-reset.sql
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Demo data reset failed!"
+          echo "Please check the logs and reset manually if needed."
+          echo "Manual command: wrangler d1 execute TREKSISTEM_DB --env staging --remote --file=seed-demo-reset.sql"

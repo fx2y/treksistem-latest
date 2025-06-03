@@ -12,6 +12,8 @@
     "db:migrate:local": "pnpm db:copy-migrations && cd ../.. && wrangler d1 migrations apply TREKSISTEM_DB --local",
     "db:migrate:remote": "pnpm db:copy-migrations && cd ../.. && wrangler d1 migrations apply TREKSISTEM_DB",
     "db:seed": "tsx scripts/seed.ts",
+    "demo:seed": "tsx scripts/seed-staging-demo.ts",
+    "demo:reset": "tsx scripts/reset-staging-demo.ts",
     "clean": "rm -rf dist drizzle"
   },
   "dependencies": {
