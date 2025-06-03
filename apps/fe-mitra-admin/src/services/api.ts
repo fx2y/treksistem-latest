@@ -1,7 +1,7 @@
 import { ApiErrorCode, type ApiErrorCodeType } from '@treksistem/shared-types';
 
 // Base API configuration and utilities
-const API_BASE_URL = '/api'; // This will be proxied to the worker in development
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'; // This will be proxied to the worker in development
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -9,7 +9,7 @@ export interface ApiResponse<T> {
   error?: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
 }
 
@@ -18,7 +18,7 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public status: number,
-    public details?: any
+    public details?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -90,12 +90,9 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -106,9 +103,9 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
-        let errorData: any = {};
+        let errorData: unknown = {};
         try {
           errorData = await response.json();
         } catch {
@@ -117,48 +114,55 @@ class ApiClient {
             error: {
               code: 'NETWORK_ERROR',
               message: `HTTP ${response.status}: ${response.statusText}`,
-            }
+            },
           };
         }
 
         // Handle RFC-TREK-ERROR-001 format
-        if (errorData.success === false && errorData.error) {
+        if (
+          typeof errorData === 'object' &&
+          errorData !== null &&
+          'success' in errorData &&
+          errorData.success === false &&
+          'error' in errorData
+        ) {
+          const error = errorData.error as { code?: string; message?: string; details?: unknown };
           throw new ApiError(
-            errorData.error.code || 'UNKNOWN_ERROR',
-            errorData.error.message || `HTTP ${response.status}`,
+            error.code || 'UNKNOWN_ERROR',
+            error.message || `HTTP ${response.status}`,
             response.status,
-            errorData.error.details
+            error.details,
           );
         }
 
         // Fallback for non-standard error responses
+        const fallbackData = errorData as { message?: string };
         throw new ApiError(
           'UNKNOWN_ERROR',
-          errorData.message || `HTTP ${response.status}: ${response.statusText}`,
-          response.status
+          fallbackData.message || `HTTP ${response.status}: ${response.statusText}`,
+          response.status,
         );
       }
 
       const data = await response.json();
-      
+
       // Handle RFC-TREK-ERROR-001 success format
-      if (data.success === true) {
+      if (typeof data === 'object' && data !== null && 'success' in data && data.success === true) {
         return data.data;
       }
-      
+
       // Handle legacy format or direct data return
       return data;
-      
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
-      
+
       // Network or other errors
       throw new ApiError(
         'NETWORK_ERROR',
         error instanceof Error ? error.message : 'Network error',
-        0
+        0,
       );
     }
   }
@@ -167,14 +171,14 @@ class ApiClient {
     return this.request<T>(endpoint, { method: 'GET' });
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'POST',
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: data ? JSON.stringify(data) : undefined,
@@ -186,4 +190,4 @@ class ApiClient {
   }
 }
 
-export const apiClient = new ApiClient(); 
+export const apiClient = new ApiClient();

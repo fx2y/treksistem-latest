@@ -3,14 +3,14 @@
 
 import { OrderStatus, DriverOrderView } from '@treksistem/shared-types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 // Driver-specific types
 export interface DriverOrder extends DriverOrderView {
   service: {
     name: string;
     type: string;
-    parsedConfigJson?: any; // Parsed service configuration
+    parsedConfigJson?: Record<string, unknown>; // Parsed service configuration
   };
   mitraName: string;
 }
@@ -42,7 +42,7 @@ class DriverApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public details?: string
+    public details?: string,
   ) {
     super(message);
     this.name = 'DriverApiError';
@@ -56,7 +56,7 @@ async function handleApiResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`;
     let errorDetails = undefined;
-    
+
     try {
       const errorData: ApiError = await response.json();
       errorMessage = errorData.error || errorMessage;
@@ -64,10 +64,10 @@ async function handleApiResponse<T>(response: Response): Promise<T> {
     } catch {
       errorMessage = `${errorMessage}: ${response.statusText}`;
     }
-    
+
     throw new DriverApiError(errorMessage, response.status, errorDetails);
   }
-  
+
   const result: ApiResponse<T> = await response.json();
   return result.data;
 }
@@ -88,9 +88,9 @@ export async function acceptOrder(driverId: string, orderId: string): Promise<Dr
 }
 
 export async function rejectOrder(
-  driverId: string, 
-  orderId: string, 
-  reason?: string
+  driverId: string,
+  orderId: string,
+  reason?: string,
 ): Promise<{ message: string }> {
   const response = await fetch(`${API_BASE_URL}/driver/${driverId}/orders/${orderId}/reject`, {
     method: 'POST',
@@ -105,15 +105,18 @@ export async function rejectOrder(
 export async function updateOrderStatus(
   driverId: string,
   orderId: string,
-  payload: UpdateStatusPayload
+  payload: UpdateStatusPayload,
 ): Promise<DriverOrder> {
-  const response = await fetch(`${API_BASE_URL}/driver/${driverId}/orders/${orderId}/update-status`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    `${API_BASE_URL}/driver/${driverId}/orders/${orderId}/update-status`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
+  );
   return handleApiResponse<DriverOrder>(response);
 }
 
@@ -121,7 +124,7 @@ export async function addOrderNote(
   driverId: string,
   orderId: string,
   note: string,
-  eventType?: string
+  eventType?: string,
 ): Promise<{ message: string }> {
   const response = await fetch(`${API_BASE_URL}/driver/${driverId}/orders/${orderId}/add-note`, {
     method: 'POST',
@@ -137,22 +140,25 @@ export async function requestUploadUrl(
   driverId: string,
   orderId: string,
   filename: string,
-  contentType: string
+  contentType: string,
 ): Promise<UploadUrlResponse> {
-  const response = await fetch(`${API_BASE_URL}/driver/${driverId}/orders/${orderId}/request-upload-url`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    `${API_BASE_URL}/driver/${driverId}/orders/${orderId}/request-upload-url`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ filename, contentType }),
     },
-    body: JSON.stringify({ filename, contentType }),
-  });
+  );
   return handleApiResponse<UploadUrlResponse>(response);
 }
 
 export async function uploadFileToR2(
   uploadUrl: string,
   file: File,
-  contentType: string
+  contentType: string,
 ): Promise<void> {
   const response = await fetch(uploadUrl, {
     method: 'PUT',
@@ -161,11 +167,11 @@ export async function uploadFileToR2(
     },
     body: file,
   });
-  
+
   if (!response.ok) {
     throw new DriverApiError(
       `Failed to upload file to R2: ${response.status} ${response.statusText}`,
-      response.status
+      response.status,
     );
   }
 }
@@ -177,7 +183,7 @@ export function getCurrentLocation(): Promise<{ lat: number; lon: number }> {
       reject(new Error('Geolocation is not supported by this browser'));
       return;
     }
-    
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
@@ -192,7 +198,7 @@ export function getCurrentLocation(): Promise<{ lat: number; lon: number }> {
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 60000,
-      }
+      },
     );
   });
 }
@@ -200,12 +206,12 @@ export function getCurrentLocation(): Promise<{ lat: number; lon: number }> {
 // Helper function to generate WhatsApp deep links
 export function generateWhatsAppLink(phoneNumber: string, message?: string): string {
   const cleanNumber = phoneNumber.replace(/\D/g, '');
-  const formattedNumber = cleanNumber.startsWith('0') 
-    ? `62${cleanNumber.slice(1)}` 
-    : cleanNumber.startsWith('62') 
-    ? cleanNumber 
-    : `62${cleanNumber}`;
-  
+  const formattedNumber = cleanNumber.startsWith('0')
+    ? `62${cleanNumber.slice(1)}`
+    : cleanNumber.startsWith('62')
+      ? cleanNumber
+      : `62${cleanNumber}`;
+
   const encodedMessage = message ? encodeURIComponent(message) : '';
   return `https://wa.me/${formattedNumber}${encodedMessage ? `?text=${encodedMessage}` : ''}`;
 }
@@ -217,4 +223,4 @@ export function generateMapsLink(lat: number, lon: number, label?: string): stri
   return `https://maps.google.com/?q=${coords}${labelParam}`;
 }
 
-export { DriverApiError }; 
+export { DriverApiError };

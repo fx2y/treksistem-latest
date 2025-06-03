@@ -1,16 +1,10 @@
 // Basic API service functions for public operations
 // Will be implemented in future instructions
 
-import type { 
-  OrderPlacementPayload, 
-  ServiceConfigBase,
-} from '@treksistem/shared-types';
-import {
-  OrderPlacementPayloadSchema,
-  ServiceConfigBaseSchema
-} from '@treksistem/shared-types';
+import type { OrderPlacementPayload, ServiceConfigBase } from '@treksistem/shared-types';
+import { OrderPlacementPayloadSchema, ServiceConfigBaseSchema } from '@treksistem/shared-types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 /**
  * Public Service Configuration Response
@@ -167,14 +161,20 @@ export async function fetchPublicServiceConfig(serviceId: string): Promise<Publi
     throw new ApiRequestError('Service ID is required', 'MISSING_SERVICE_ID');
   }
 
-  const response = await fetch(`${API_BASE_URL}/public/services/${encodeURIComponent(serviceId)}/config`);
+  const response = await fetch(
+    `${API_BASE_URL}/public/services/${encodeURIComponent(serviceId)}/config`,
+  );
   const data = await handleApiResponse<PublicServiceConfig>(response);
 
   // Validate the configJson structure
   try {
     ServiceConfigBaseSchema.parse(data.configJson);
   } catch (error) {
-    throw new ApiRequestError('Invalid service configuration received from server', 'INVALID_CONFIG', error);
+    throw new ApiRequestError(
+      'Invalid service configuration received from server',
+      'INVALID_CONFIG',
+      error,
+    );
   }
 
   return data;
@@ -223,4 +223,4 @@ export const publicApi = {
     const response = await fetch(`${API_BASE_URL}/orders/${orderId}/track`);
     return await handleApiResponse(response);
   },
-}; 
+};

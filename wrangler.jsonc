@@ -8,61 +8,63 @@
       "binding": "TREKSISTEM_DB",
       "database_name": "treksistem-d1-prod",
       "database_id": "9268c66b-1d66-4758-bee2-359cb7bb70d7",
-      "migrations_dir": "packages/db-schema/migrations",
-    },
+      "migrations_dir": "packages/db-schema/migrations"
+    }
   ],
   "r2_buckets": [
     {
       "binding": "TREKSISTEM_R2",
       "bucket_name": "treksistem-proofs-prod",
-      "preview_bucket_name": "treksistem-proofs-preview",
-    },
+      "preview_bucket_name": "treksistem-proofs-preview"
+    }
   ],
   "vars": {
-    "WORKER_ENV": "development",
+    "WORKER_ENV": "production"
   },
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1,
+    "head_sampling_rate": 1
   },
   "env": {
     "staging": {
       "name": "treksistem-api-staging",
       "vars": {
-        "WORKER_ENV": "staging",
+        "WORKER_ENV": "staging"
       },
       "d1_databases": [
         {
           "binding": "TREKSISTEM_DB",
           "database_name": "treksistem-d1-staging",
-          "database_id": "staging-database-id-here",
-        },
+          "database_id": "3aeab45b-0cc4-4081-ba98-7a4a87ee6cd7",
+          "preview_database_id": "3aeab45b-0cc4-4081-ba98-7a4a87ee6cd7"
+        }
       ],
       "r2_buckets": [
         {
           "binding": "TREKSISTEM_R2",
           "bucket_name": "treksistem-proofs-staging",
-        },
-      ],
+          "preview_bucket_name": "treksistem-proofs-staging"
+        }
+      ]
     },
     "development": {
       "name": "treksistem-api-dev",
       "vars": {
-        "WORKER_ENV": "development",
+        "WORKER_ENV": "development"
       },
       "d1_databases": [
         {
           "binding": "TREKSISTEM_DB",
           "database_name": "treksistem-d1-dev",
-          "database_id": "dev-database-id-here",
-        },
+          "database_id": "dev-database-id-here"
+        }
       ],
       "r2_buckets": [
         {
           "binding": "TREKSISTEM_R2",
-          "bucket_name": "treksistem-proofs-dev",
-        },
-      ],
-    },
-  },
+          "bucket_name": "treksistem-proofs-dev"
+        }
+      ]
+    }
+  }
 }
