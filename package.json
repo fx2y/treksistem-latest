@@ -18,6 +18,7 @@
     "clean": "turbo clean",
     "type-check": "turbo type-check",
     "verify-setup": "./scripts/verify-dev-setup.sh",
+    "qa:verify": "./scripts/dev-qa-verify.sh",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
     "deploy:dev": "wrangler deploy --env development",
@@ -35,9 +36,10 @@
     "ci:security-audit": "pnpm audit --audit-level moderate",
     "workflow:validate": "find .github/workflows -name '*.yml' -exec yamllint {} \\; || echo 'yamllint not installed, skipping YAML validation'",
     "docs:serve": "python3 -m http.server 8080 -d docs || python -m SimpleHTTPServer 8080 docs",
-    "health:check": "curl -f http://localhost:8787/health || echo 'Worker not running locally'",
+    "health:check": "curl -f http://localhost:8787/api/health || echo 'Worker not running locally'",
     "logs:worker": "wrangler tail",
     "logs:pages": "echo 'Check Cloudflare Pages dashboard for frontend logs'",
+    "test:api:local": "newman run postman/Treksistem_API_Working.postman_collection.json -e postman/Local_Dev.postman_environment.json --reporters cli,htmlextra --reporter-htmlextra-export postman/report.html --reporter-htmlextra-title 'Treksistem API Test Report' --reporter-htmlextra-logs",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -62,6 +64,8 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.0",
+    "newman": "^6.2.1",
+    "newman-reporter-htmlextra": "^1.23.1",
     "prettier": "^3.2.5",
     "turbo": "^1.13.3",
     "typescript": "^5.4.5",

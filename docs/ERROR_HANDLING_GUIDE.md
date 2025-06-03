@@ -26,6 +26,7 @@ All API errors follow this standardized format:
 ### Error Codes
 
 #### Client Errors (4xx)
+
 - `VALIDATION_ERROR` - Request validation failed
 - `AUTH_ERROR` - Authentication required
 - `FORBIDDEN` - Access denied
@@ -33,6 +34,7 @@ All API errors follow this standardized format:
 - `CONFLICT` - Resource already exists
 
 #### Business Logic Errors
+
 - `COST_CALCULATION_ERROR` - Cost calculation failed
 - `TRUST_MECHANISM_ERROR` - Trust evaluation failed
 - `SERVICE_CONFIG_ERROR` - Service configuration invalid
@@ -40,6 +42,7 @@ All API errors follow this standardized format:
 - `DRIVER_ASSIGNMENT_ERROR` - Driver assignment failed
 
 #### Server Errors (5xx)
+
 - `INTERNAL_ERROR` - Unexpected server error
 - `DATABASE_ERROR` - Database operation failed
 - `EXTERNAL_SERVICE_ERROR` - External service unavailable
@@ -47,37 +50,37 @@ All API errors follow this standardized format:
 ### Custom Error Classes
 
 #### AppError (Base Class)
+
 ```typescript
 import { AppError, ERROR_CODES } from '../utils/error-handling';
 
-throw new AppError(
-  'Custom error message',
-  ERROR_CODES.VALIDATION_ERROR,
-  400,
-  { field: 'email', value: 'invalid' }
-);
+throw new AppError('Custom error message', ERROR_CODES.VALIDATION_ERROR, 400, {
+  field: 'email',
+  value: 'invalid',
+});
 ```
 
 #### Specialized Error Classes
+
 ```typescript
-import { 
+import {
   ValidationError,
   AuthError,
   NotFoundError,
   ConflictError,
-  DatabaseError 
+  DatabaseError,
 } from '../utils/error-handling';
 
 // Validation error
 throw new ValidationError('Invalid email format', {
   field: 'email',
-  value: 'invalid-email'
+  value: 'invalid-email',
 });
 
 // Database error
 throw new DatabaseError('Failed to create user', {
   operation: 'INSERT',
-  table: 'users'
+  table: 'users',
 });
 ```
 
@@ -119,17 +122,18 @@ Logger.error('Database connection failed', error, { operation: 'user_fetch' });
 ### Route Handler Best Practices
 
 1. **Use try-catch for database operations:**
+
 ```typescript
 app.get('/api/users/:id', async (c) => {
   try {
     const user = await db.query.users.findFirst({
-      where: eq(users.id, c.req.param('id'))
+      where: eq(users.id, c.req.param('id')),
     });
-    
+
     if (!user) {
       throw new NotFoundError('User not found');
     }
-    
+
     return c.json({ success: true, data: user });
   } catch (error) {
     if (error instanceof AppError) {
@@ -141,13 +145,14 @@ app.get('/api/users/:id', async (c) => {
 ```
 
 2. **Validate input parameters:**
+
 ```typescript
 import { validateCuid } from '../utils/error-handling';
 
 app.get('/api/orders/:orderId', (c) => {
   const orderId = c.req.param('orderId');
   validateCuid(orderId, 'Order ID');
-  
+
   // Continue with validated orderId
 });
 ```
@@ -282,11 +287,13 @@ Comprehensive test endpoints are available at `/api/test/error-handling/`:
 ### Manual Testing
 
 1. **Start the worker:**
+
 ```bash
 cd apps/worker && pnpm wrangler dev --local --persist
 ```
 
 2. **Test error scenarios:**
+
 ```bash
 # Test validation error
 curl -X POST http://localhost:8787/api/test/error-handling/validation-error \
@@ -311,6 +318,7 @@ curl http://localhost:8787/api/test/error-handling/database-error/unique-constra
 ### Cloudflare Worker Logs
 
 Access logs via Cloudflare Dashboard:
+
 1. Go to Workers & Pages → Your Worker → Logs
 2. Filter by error level or search for specific error codes
 3. Use structured logging context for debugging
@@ -325,6 +333,7 @@ Access logs via Cloudflare Dashboard:
 ### Error Context
 
 All errors include contextual information:
+
 - Request method and URL
 - User/Mitra/Driver IDs when available
 - Timestamp
@@ -334,6 +343,7 @@ All errors include contextual information:
 ## Best Practices
 
 ### Backend
+
 1. Always use try-catch for database operations
 2. Throw specific error types rather than generic Error
 3. Include relevant context in error details
@@ -341,6 +351,7 @@ All errors include contextual information:
 5. Don't expose sensitive information in error messages
 
 ### Frontend
+
 1. Handle errors at the appropriate level (component vs global)
 2. Provide user-friendly error messages
 3. Implement proper retry logic for network errors
@@ -348,6 +359,7 @@ All errors include contextual information:
 5. Log client-side errors for debugging
 
 ### General
+
 1. Follow RFC-TREK-ERROR-001 format consistently
 2. Test error scenarios thoroughly
 3. Monitor error rates and patterns
@@ -359,6 +371,7 @@ All errors include contextual information:
 If updating existing code to use the new error handling:
 
 1. **Replace generic Error throws:**
+
 ```typescript
 // Before
 throw new Error('User not found');
@@ -368,6 +381,7 @@ throw new NotFoundError('User not found');
 ```
 
 2. **Update API error handling:**
+
 ```typescript
 // Before
 catch (error) {
@@ -385,6 +399,7 @@ catch (error) {
 ```
 
 3. **Add error boundaries:**
+
 ```typescript
 // Wrap components with ErrorBoundary
 <ErrorBoundary>
@@ -392,4 +407,4 @@ catch (error) {
 </ErrorBoundary>
 ```
 
-This comprehensive error handling system ensures consistent, user-friendly error experiences while providing developers with the information needed for effective debugging and monitoring. 
+This comprehensive error handling system ensures consistent, user-friendly error experiences while providing developers with the information needed for effective debugging and monitoring.

@@ -41,6 +41,7 @@ This document summarizes the implementation of Cloudflare Access authentication 
 ### Two-Layer Authentication
 
 1. **Authentication Layer (Cloudflare Access)**
+
    - Validates `Cf-Access-Authenticated-User-Email` header
    - Supports Email OTP and OAuth providers
    - Development mock via `X-Mock-User-Email`
@@ -52,10 +53,10 @@ This document summarizes the implementation of Cloudflare Access authentication 
 
 ### Environment-Specific Behavior
 
-| Environment | Authentication Method | Fallback |
-|-------------|----------------------|----------|
-| Development | Mock header | `dev-admin@example.com` |
-| Staging/Production | CF Access header | 401 Unauthorized |
+| Environment        | Authentication Method | Fallback                |
+| ------------------ | --------------------- | ----------------------- |
+| Development        | Mock header           | `dev-admin@example.com` |
+| Staging/Production | CF Access header      | 401 Unauthorized        |
 
 ## API Endpoints
 
@@ -87,11 +88,13 @@ GET    /api/test/db            - Test database connection
 ### Cloudflare Access Setup
 
 1. **Application Configuration**
+
    - Name: "Treksistem Mitra API"
    - Path: `/api/mitra/*`
    - Session Duration: 24 hours
 
 2. **Identity Providers**
+
    - Email OTP (primary)
    - GitHub OAuth (optional)
    - Google OAuth (optional)
@@ -105,7 +108,7 @@ GET    /api/test/db            - Test database connection
 Mitra records must exist with `owner_user_id` matching authenticated emails:
 
 ```sql
-INSERT INTO mitras (id, owner_user_id, name, created_at, updated_at) 
+INSERT INTO mitras (id, owner_user_id, name, created_at, updated_at)
 VALUES ('mitra_id', 'admin@example.com', 'Example Mitra', timestamp, timestamp);
 ```
 
@@ -168,10 +171,12 @@ All authentication errors follow RFC-TREK-ERROR-001:
 ### Common Error Scenarios
 
 1. **Missing Authentication** (401)
+
    - No CF Access header in production
    - No mock header in development
 
 2. **No Mitra Record** (403)
+
    - Authenticated email has no associated Mitra
    - Database query fails
 
@@ -237,4 +242,4 @@ All authentication errors follow RFC-TREK-ERROR-001:
 
 ---
 
-**Implementation Complete**: The Cloudflare Access authentication system is fully implemented and ready for production deployment. 
+**Implementation Complete**: The Cloudflare Access authentication system is fully implemented and ready for production deployment.

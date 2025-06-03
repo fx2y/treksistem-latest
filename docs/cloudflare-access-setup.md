@@ -28,7 +28,7 @@ Cloudflare Access provides zero-trust authentication for the Mitra Admin portal,
 
    - **Application Name**: `Treksistem Mitra API`
    - **Session Duration**: `24 hours` (recommended)
-   - **Application Domain**: 
+   - **Application Domain**:
      - For custom domain: `your-api-domain.com`
      - For workers.dev: `treksistem-worker.your-subdomain.workers.dev`
    - **Path**: `/api/mitra/*`
@@ -38,6 +38,7 @@ Cloudflare Access provides zero-trust authentication for the Mitra Admin portal,
 Enable the following identity providers:
 
 1. **Email OTP** (Primary method)
+
    - ✅ Enable "One-time PIN"
    - This allows authentication via email verification codes
 
@@ -48,6 +49,7 @@ Enable the following identity providers:
 #### CORS Settings
 
 Configure CORS if your frontend is on a different domain:
+
 - **Access-Control-Allow-Origin**: Include your frontend domains
 - **Access-Control-Allow-Credentials**: `true`
 
@@ -60,21 +62,24 @@ Configure CORS if your frontend is on a different domain:
 3. **Configure Rules**:
 
    **Option A: Email Domain-based Access**
+
    ```
    Selector: "Emails ending in"
    Value: "@yourdomain.com"
    ```
 
    **Option B: Specific Email Addresses**
+
    ```
    Selector: "Email"
    Value: "admin@example.com"
    ```
 
    **Option C: Multiple Emails (for testing)**
+
    ```
    Selector: "Email"
-   Values: 
+   Values:
    - "admin1@example.com"
    - "admin2@example.com"
    - "test@yourdomain.com"
@@ -87,6 +92,7 @@ Configure CORS if your frontend is on a different domain:
 When the Mitra Admin frontend is deployed:
 
 1. Create another Self-hosted application:
+
    - **Application Name**: `Treksistem Mitra Admin Frontend`
    - **Application Domain**: `mitra-admin.yourdomain.com`
    - **Path**: `/` (protect entire frontend)
@@ -98,6 +104,7 @@ When the Mitra Admin frontend is deployed:
 For production deployment, configure a custom domain:
 
 1. **DNS Setup**:
+
    ```
    CNAME api.yourdomain.com → treksistem-worker.your-subdomain.workers.dev
    CNAME mitra-admin.yourdomain.com → your-pages-deployment.pages.dev
@@ -175,6 +182,7 @@ curl -H "X-Mock-User-Email: test@example.com" \
 ### 3. Header Security
 
 The worker validates the following headers:
+
 - `Cf-Access-Authenticated-User-Email`: Primary user identifier
 - `Cf-Access-Authenticated-User-Id`: Optional additional identifier
 
@@ -189,11 +197,13 @@ The worker validates the following headers:
 ### Common Issues
 
 1. **"Authentication required" error**
+
    - Verify CF Access application is properly configured
    - Check that the path `/api/mitra/*` is correctly protected
    - Ensure the domain matches your worker deployment
 
 2. **"No Mitra account associated" error**
+
    - The authenticated email doesn't have a corresponding Mitra record
    - Create a Mitra record with `owner_user_id` matching the email
    - Verify the email case matches exactly
@@ -226,7 +236,7 @@ Monitor worker logs for authentication events:
 The following endpoints require CF Access authentication:
 
 - `GET /api/mitra/profile` - Get Mitra profile
-- `PUT /api/mitra/profile` - Update Mitra profile  
+- `PUT /api/mitra/profile` - Update Mitra profile
 - `GET /api/mitra/services` - List Mitra services
 - `GET /api/mitra/drivers` - List Mitra drivers
 - `GET /api/mitra/auth/test` - Test authentication
@@ -243,4 +253,4 @@ The following endpoints require CF Access authentication:
 
 - [RFC-TREK-AUTH-001: Authentication & Authorization](../rfcs.md#rfc-trek-auth-001)
 - [Cloudflare Access Documentation](https://developers.cloudflare.com/cloudflare-one/applications/)
-- [Zero Trust Setup Guide](https://developers.cloudflare.com/cloudflare-one/setup/) 
+- [Zero Trust Setup Guide](https://developers.cloudflare.com/cloudflare-one/setup/)

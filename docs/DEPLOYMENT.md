@@ -92,7 +92,7 @@ pnpm deploy:staging
 ### Development Deployment
 
 ```bash
-# Deploy to development environment  
+# Deploy to development environment
 pnpm deploy:dev
 ```
 
@@ -152,16 +152,19 @@ npx wrangler secret put API_KEY
 2. Configure build settings for each frontend app:
 
 **Mitra Admin (`fe-mitra-admin`)**:
+
 - Build command: `cd apps/fe-mitra-admin && npm run build`
 - Build output directory: `apps/fe-mitra-admin/dist`
 - Root directory: `/`
 
 **User Public (`fe-user-public`)**:
+
 - Build command: `cd apps/fe-user-public && npm run build`
 - Build output directory: `apps/fe-user-public/dist`
 - Root directory: `/`
 
 **Driver View (`fe-driver-view`)**:
+
 - Build command: `cd apps/fe-driver-view && npm run build`
 - Build output directory: `apps/fe-driver-view/dist`
 - Root directory: `/`
@@ -193,7 +196,7 @@ Update the CORS origins in `apps/worker/src/index.ts` to include your production
 ```typescript
 origin: [
   'https://mitra.yourdomain.com',
-  'https://app.yourdomain.com', 
+  'https://app.yourdomain.com',
   'https://driver.yourdomain.com',
   // ... existing localhost origins for development
 ],
@@ -296,4 +299,4 @@ pnpm db:generate
 pnpm db:migrate:prod
 ```
 
-Always test migrations on staging before production deployment. 
+Always test migrations on staging before production deployment.

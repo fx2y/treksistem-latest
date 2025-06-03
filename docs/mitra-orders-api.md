@@ -21,15 +21,15 @@ Lists all orders for the authenticated Mitra with optional filtering and paginat
 
 #### Query Parameters
 
-| Parameter | Type | Description | Required |
-|-----------|------|-------------|----------|
-| `status` | string | Filter by order status (enum) | No |
-| `serviceId` | string | Filter by service ID (CUID) | No |
-| `driverId` | string | Filter by driver ID (CUID) | No |
-| `dateFrom` | string | Filter from date (ISO8601) | No |
-| `dateTo` | string | Filter to date (ISO8601) | No |
-| `page` | number | Page number (default: 1) | No |
-| `limit` | number | Items per page (1-100, default: 10) | No |
+| Parameter   | Type   | Description                         | Required |
+| ----------- | ------ | ----------------------------------- | -------- |
+| `status`    | string | Filter by order status (enum)       | No       |
+| `serviceId` | string | Filter by service ID (CUID)         | No       |
+| `driverId`  | string | Filter by driver ID (CUID)          | No       |
+| `dateFrom`  | string | Filter from date (ISO8601)          | No       |
+| `dateTo`    | string | Filter to date (ISO8601)            | No       |
+| `page`      | number | Page number (default: 1)            | No       |
+| `limit`     | number | Items per page (1-100, default: 10) | No       |
 
 #### Response
 
@@ -79,8 +79,8 @@ Retrieves detailed information about a specific order, including related service
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter | Type   | Description     |
+| --------- | ------ | --------------- |
 | `orderId` | string | Order ID (CUID) |
 
 #### Response
@@ -138,8 +138,8 @@ Manually assigns a driver to an order. Includes comprehensive validation to ensu
 
 #### Path Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter | Type   | Description     |
+| --------- | ------ | --------------- |
 | `orderId` | string | Order ID (CUID) |
 
 #### Request Body
@@ -161,7 +161,7 @@ Manually assigns a driver to an order. Includes comprehensive validation to ensu
     "mitraId": "cm...",
     "driverId": "cm...",
     "status": "DRIVER_ASSIGNED",
-    "updatedAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2024-01-01T00:00:00.000Z"
     // ... other order fields
   }
 }
@@ -184,6 +184,7 @@ Manually assigns a driver to an order. Includes comprehensive validation to ensu
 ### Status Transitions
 
 When a driver is successfully assigned:
+
 - Order status changes to `DRIVER_ASSIGNED`
 - Order `updatedAt` timestamp is updated
 - An `ASSIGNMENT_CHANGED` event is created in `order_events`
@@ -193,6 +194,7 @@ When a driver is successfully assigned:
 ### Common Error Responses
 
 #### 400 Bad Request
+
 ```json
 {
   "success": false,
@@ -204,6 +206,7 @@ When a driver is successfully assigned:
 ```
 
 #### 404 Not Found
+
 ```json
 {
   "success": false,
@@ -215,6 +218,7 @@ When a driver is successfully assigned:
 ```
 
 #### 409 Conflict
+
 ```json
 {
   "success": false,
@@ -226,6 +230,7 @@ When a driver is successfully assigned:
 ```
 
 #### Validation Errors
+
 ```json
 {
   "success": false,
@@ -294,4 +299,4 @@ The implementation includes comprehensive test coverage via `test-mitra-orders.s
 2. **Advanced Filtering**: Date range filtering on `scheduledAt`
 3. **Sorting Options**: Multiple sort criteria support
 4. **Real-time Updates**: WebSocket notifications for order changes
-5. **Analytics**: Order statistics and reporting endpoints 
+5. **Analytics**: Order statistics and reporting endpoints

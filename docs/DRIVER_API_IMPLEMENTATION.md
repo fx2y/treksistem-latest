@@ -16,24 +16,25 @@ This document describes the implementation of the Mitra Driver Management API (T
 
 #### Driver CRUD Operations
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/mitra/drivers` | Create a new driver |
-| `GET` | `/api/mitra/drivers` | List all drivers for the authenticated Mitra |
-| `GET` | `/api/mitra/drivers/:driverId` | Get a specific driver by ID |
-| `PUT` | `/api/mitra/drivers/:driverId` | Update a specific driver |
+| Method | Endpoint                       | Description                                  |
+| ------ | ------------------------------ | -------------------------------------------- |
+| `POST` | `/api/mitra/drivers`           | Create a new driver                          |
+| `GET`  | `/api/mitra/drivers`           | List all drivers for the authenticated Mitra |
+| `GET`  | `/api/mitra/drivers/:driverId` | Get a specific driver by ID                  |
+| `PUT`  | `/api/mitra/drivers/:driverId` | Update a specific driver                     |
 
 #### Service Assignment Operations
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/mitra/drivers/:driverId/services` | Assign a service to a driver |
-| `DELETE` | `/api/mitra/drivers/:driverId/services/:serviceId` | Unassign a service from a driver |
-| `GET` | `/api/mitra/drivers/:driverId/services` | List services assigned to a driver |
+| Method   | Endpoint                                           | Description                        |
+| -------- | -------------------------------------------------- | ---------------------------------- |
+| `POST`   | `/api/mitra/drivers/:driverId/services`            | Assign a service to a driver       |
+| `DELETE` | `/api/mitra/drivers/:driverId/services/:serviceId` | Unassign a service from a driver   |
+| `GET`    | `/api/mitra/drivers/:driverId/services`            | List services assigned to a driver |
 
 ### Key Features Implemented
 
 #### 1. **Comprehensive CRUD Operations**
+
 - ✅ Create drivers with validation
 - ✅ List drivers with pagination-ready structure
 - ✅ Get individual driver details
@@ -41,6 +42,7 @@ This document describes the implementation of the Mitra Driver Management API (T
 - ✅ Proper error handling and validation
 
 #### 2. **Service Assignment Management**
+
 - ✅ Assign services to drivers
 - ✅ Unassign services from drivers
 - ✅ List assigned services for a driver
@@ -48,18 +50,21 @@ This document describes the implementation of the Mitra Driver Management API (T
 - ✅ Cross-Mitra authorization checks
 
 #### 3. **Security & Authorization**
+
 - ✅ Mitra-scoped operations (drivers can only be managed by their owning Mitra)
 - ✅ CUID2 ID validation
 - ✅ Proper authentication middleware integration
 - ✅ Cross-Mitra access prevention
 
 #### 4. **Data Validation**
+
 - ✅ Zod schema validation for all inputs
 - ✅ CUID2 format validation for IDs
 - ✅ Duplicate identifier prevention within Mitra scope
 - ✅ Required field validation
 
 #### 5. **Error Handling**
+
 - ✅ Comprehensive error responses with proper HTTP status codes
 - ✅ Conflict detection (409 for duplicates)
 - ✅ Not found handling (404 for missing resources)
@@ -69,6 +74,7 @@ This document describes the implementation of the Mitra Driver Management API (T
 ### Request/Response Examples
 
 #### Create Driver
+
 ```bash
 POST /api/mitra/drivers
 Content-Type: application/json
@@ -85,6 +91,7 @@ X-Mock-User-Email: test-admin@example.com
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -105,6 +112,7 @@ X-Mock-User-Email: test-admin@example.com
 ```
 
 #### Assign Service to Driver
+
 ```bash
 POST /api/mitra/drivers/fqkz0fcpqidqgtyubyats1o4/services
 Content-Type: application/json
@@ -116,6 +124,7 @@ X-Mock-User-Email: test-admin@example.com
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -136,11 +145,13 @@ The implementation properly integrates with the existing Drizzle schema:
 A comprehensive test script (`test-driver-api.sh`) has been created that covers:
 
 1. **Happy Path Testing**
+
    - Driver creation, listing, updating
    - Service assignment and unassignment
    - Listing assigned services
 
 2. **Error Case Testing**
+
    - Duplicate identifier handling
    - Invalid ID format validation
    - Cross-Mitra authorization
@@ -154,36 +165,43 @@ A comprehensive test script (`test-driver-api.sh`) has been created that covers:
 ### Verification Criteria Met
 
 ✅ **All CRUD operations for drivers function correctly, scoped to the authenticated Mitra**
+
 - Drivers can only be created, read, updated by their owning Mitra
 - Proper validation and error handling implemented
 
 ✅ **Service assignment/unassignment updates `driverServices` table correctly**
+
 - Junction table properly managed
 - Duplicate assignment prevention
 - Clean unassignment with proper cleanup
 
 ✅ **Cannot assign a driver to a service not owned by the Mitra**
+
 - Cross-Mitra validation implemented
 - Both driver and service ownership verified before assignment
 
 ### Architecture Highlights
 
 #### 1. **Modular Design**
+
 - Separate route file for driver management
 - Clean separation of concerns
 - Reusable middleware integration
 
 #### 2. **Type Safety**
+
 - Full TypeScript integration
 - Zod schema validation
 - Proper type inference from database schema
 
 #### 3. **Developer Experience**
+
 - Comprehensive error messages
 - Consistent API response structure
 - Clear validation feedback
 
 #### 4. **Operational Excellence**
+
 - Proper logging for debugging
 - Performance-optimized queries
 - Database transaction safety
@@ -199,4 +217,4 @@ The implementation provides a solid foundation for future enhancements:
 
 ## Conclusion
 
-The Mitra Driver Management API has been successfully implemented with comprehensive CRUD operations, robust security, and thorough testing. The implementation follows best practices for API design, database integration, and error handling while maintaining consistency with the existing codebase architecture. 
+The Mitra Driver Management API has been successfully implemented with comprehensive CRUD operations, robust security, and thorough testing. The implementation follows best practices for API design, database integration, and error handling while maintaining consistency with the existing codebase architecture.
