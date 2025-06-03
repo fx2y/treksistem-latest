@@ -2,7 +2,7 @@
  * Standard API response types per RFC-TREK-ERROR-001
  */
 
-export interface ApiSuccessResponse<T = any> {
+export interface ApiSuccessResponse<T = unknown> {
   success: true;
   data: T;
 }
@@ -12,11 +12,11 @@ export interface ApiErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: Record<string, unknown>;
   };
 }
 
-export type ApiResponse<T = any> = ApiSuccessResponse<T> | ApiErrorResponse;
+export type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
 
 /**
  * Standard error codes from backend
@@ -53,7 +53,7 @@ export class ApiError extends Error {
     public _code: string,
     message: string,
     public _status: number,
-    public _details?: any
+    public _details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'ApiError';
@@ -126,7 +126,7 @@ export class ApiError extends Error {
     return this._status;
   }
 
-  get details(): any {
+  get details(): Record<string, unknown> | undefined {
     return this._details;
   }
 } 

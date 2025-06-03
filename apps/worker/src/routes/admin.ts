@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { usageMonitor, getCostOptimizationInsights } from '../utils/usage-monitoring';
+import { getRateLimitStats } from '../middleware/rate-limiting';
 import { cfAccessAuth } from '../middleware/auth';
 import type { AppContext } from '../types';
 
@@ -83,6 +84,31 @@ adminRoutes.post('/usage-cleanup', async (c) => {
   } catch (error) {
     console.error('Usage cleanup failed:', error);
     return c.json({ success: false, error: 'Failed to cleanup usage metrics' }, 500);
+  }
+});
+
+adminRoutes.get('/rate-limit-stats', async (c) => {
+  try {
+    const stats = getRateLimitStats();
+    
+    return c.json({
+      success: true,
+      data: {
+        rateLimiting: stats,
+        summary: {
+          totalActiveKeys: stats.store.activeKeys,
+          totalConfigs: Object.keys(stats.configs).length,
+          configuredEndpoints: Object.keys(stats.configs),
+        },
+        timestamp: new Date().toISOString(),
+      }
+    });
+  } catch (error) {
+    console.error('Rate limit stats retrieval failed:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Failed to retrieve rate limit statistics' 
+    }, 500);
   }
 });
 

@@ -190,7 +190,7 @@ export function DriverOrderDetailPage() {
     uploadMutation.mutate({ file: selectedFile, newStatus: pendingStatus });
   };
 
-  const formatAddress = (address: any): string => {
+  const formatAddress = (address: string | { text?: string; notes?: string } | undefined): string => {
     if (typeof address === 'string') return address;
     return address?.text || 'Address not available';
   };

@@ -9,6 +9,7 @@ import { sql } from 'drizzle-orm';
 import { cfAccessAuth } from './middleware/auth';
 import { securityHeaders } from './middleware/security-headers';
 import { usageTrackingMiddleware } from './utils/usage-monitoring';
+import { rateLimitingMiddleware } from './middleware/rate-limiting';
 import { Logger, AppError, ERROR_CODES } from './utils/error-handling';
 import mitraRoutes from './routes/mitra';
 import mitraOrderRoutes from './routes/mitra.orders';
@@ -83,46 +84,67 @@ app.use('*', securityHeaders());
 // 6. Usage Monitoring (RFC-TREK-COST-001 compliance)
 app.use('*', usageTrackingMiddleware);
 
-// 7. Global Error Handler (as per RFC-TREK-ERROR-001)
+// 7. Rate Limiting Middleware (Application-level backup to WAF)
+app.use('*', rateLimitingMiddleware());
+
+// 8. Global Error Handler (as per RFC-TREK-ERROR-001)
 app.onError((err, _c) => {
   const method = _c.req.method;
   const url = _c.req.url;
   
-  // Check if it's a Hono HTTPException
-  if (err instanceof Error && 'getResponse' in err && typeof err.getResponse === 'function') {
-    Logger.warn(`HTTP Exception: ${method} ${url}`, {
-      status: (err as any).status,
-      message: err.message,
-    });
-    return (err as any).getResponse();
-  }
-
-  // Check if it's our custom AppError
-  if (err instanceof AppError) {
-    Logger.warn(`Application Error: ${method} ${url}`, {
-      code: err.code,
-      message: err.message,
-      details: err.details,
-    });
-    return _c.json(err.toErrorResponse(), err.statusCode as any);
-  }
-
-  // Default error response structure per RFC-TREK-ERROR-001
-  let statusCode = 500;
-  const errorResponse: { 
-    success: boolean; 
-    error: { 
-      code: string; 
-      message: string; 
-      details?: any 
-    } 
+  // Default error response structure
+  const errorResponse: {
+    success: false;
+    error: {
+      code: string;
+      message: string;
+      timestamp: string;
+      requestId: string;
+      details?: any;
+    };
   } = {
     success: false,
     error: {
       code: ERROR_CODES.INTERNAL_ERROR,
-      message: 'An unexpected error occurred.',
+      message: 'An internal server error occurred.',
+      timestamp: new Date().toISOString(),
+      requestId: createId(), // Generate unique request ID for tracking
     },
   };
+
+  let statusCode = 500;
+
+  // Handle HTTP exceptions (from middleware like auth)
+  if (err.name === 'HTTPException') {
+    statusCode = (err as any).status;
+    errorResponse.error.message = err.message;
+    
+    // Map common HTTP status codes to our error codes
+    switch (statusCode) {
+      case 400:
+        errorResponse.error.code = ERROR_CODES.VALIDATION_ERROR;
+        break;
+      case 401:
+        errorResponse.error.code = ERROR_CODES.AUTH_ERROR;
+        break;
+      case 403:
+        errorResponse.error.code = ERROR_CODES.FORBIDDEN;
+        break;
+      case 404:
+        errorResponse.error.code = ERROR_CODES.NOT_FOUND;
+        break;
+      case 409:
+        errorResponse.error.code = ERROR_CODES.CONFLICT;
+        break;
+      case 429:
+        errorResponse.error.code = 'RATE_LIMIT_EXCEEDED';
+        break;
+      default:
+        errorResponse.error.code = ERROR_CODES.INTERNAL_ERROR;
+    }
+    
+    Logger.warn(`HTTP Exception: ${method} ${url}`, { status: statusCode, message: err.message });
+  }
 
   // Handle specific error types
   if (err.name === 'ZodError') {
@@ -149,11 +171,14 @@ app.onError((err, _c) => {
       code: (err as any).code,
       details: (err as any).details,
     });
-  } else if ('statusCode' in err && typeof (err as any).statusCode === 'number') {
-    statusCode = (err as any).statusCode;
+  } else if (err instanceof AppError) {
+    statusCode = (err as any)._statusCode;
     errorResponse.error.message = err.message;
-    if ('code' in err && typeof (err as any).code === 'string') {
-      errorResponse.error.code = (err as any).code;
+    if ('_code' in err && typeof (err as any)._code === 'string') {
+      errorResponse.error.code = (err as any)._code;
+    }
+    if ('_details' in err) {
+      errorResponse.error.details = (err as any)._details;
     }
   } else if (err.message?.includes('UNIQUE constraint failed')) {
     // Handle database constraint violations
@@ -178,7 +203,7 @@ app.onError((err, _c) => {
   return _c.json(errorResponse, statusCode as any);
 });
 
-// 8. 404 Handler
+// 9. 404 Handler
 app.notFound((_c) => {
   return _c.json({
     success: false,

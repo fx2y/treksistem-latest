@@ -48,6 +48,14 @@ export class CostCalculationError extends Error {
     super(message);
     this.name = 'CostCalculationError';
   }
+
+  get code(): string | undefined {
+    return this._code;
+  }
+
+  get details(): any {
+    return this._details;
+  }
 }
 
 /**

@@ -53,7 +53,7 @@ export function OrderCard({
     ? new Date(order.scheduledPickupTime).toLocaleString() 
     : null;
 
-  const formatAddress = (address: any): string => {
+  const formatAddress = (address: string | { text?: string; notes?: string } | undefined): string => {
     if (typeof address === 'string') return address;
     return address?.text || 'Address not available';
   };
@@ -89,7 +89,7 @@ export function OrderCard({
             </div>
           </div>
           <Badge 
-            variant={statusInfo.variant as any} 
+            variant={statusInfo.variant as "default" | "secondary" | "destructive" | "outline"} 
             className={`${statusInfo.color} shrink-0`}
           >
             {statusInfo.label}

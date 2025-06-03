@@ -9,7 +9,11 @@
     "build": "wrangler deploy --dry-run --minify src/index.ts",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist .wrangler"
+    "clean": "rm -rf dist .wrangler",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.6.0",
@@ -23,7 +27,11 @@
     "@treksistem/db-schema": "workspace:*",
     "@treksistem/eslint-config-custom": "workspace:*",
     "@treksistem/shared-types": "workspace:*",
+    "@types/node": "^20.12.7",
+    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
     "typescript": "^5.4.5",
+    "vitest": "^2.1.8",
     "wrangler": "^3.57.1"
   }
 }

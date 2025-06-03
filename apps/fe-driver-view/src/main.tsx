@@ -9,16 +9,17 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 3, // 3 minutes (shorter for real-time driver updates)
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: Error) => {
         // Don't retry on client errors (4xx) or auth errors
-        if (error?.response?.status >= 400 && error?.response?.status < 500) {
+        const errorWithResponse = error as Error & { response?: { status: number } };
+        if (errorWithResponse?.response?.status && errorWithResponse.response.status >= 400 && errorWithResponse.response.status < 500) {
           return false;
         }
         
         // Don't retry on specific HTTP status codes
-        if (error?.response?.status === 404 || 
-            error?.response?.status === 401 || 
-            error?.response?.status === 403) {
+        if (errorWithResponse?.response?.status === 404 || 
+            errorWithResponse?.response?.status === 401 || 
+            errorWithResponse?.response?.status === 403) {
           return false;
         }
         
@@ -32,9 +33,10 @@ const queryClient = new QueryClient({
       refetchOnReconnect: true, // Refetch when network reconnects
     },
     mutations: {
-      retry: (failureCount, error: any) => {
+      retry: (failureCount, error: Error) => {
         // Retry network errors for critical driver operations
-        if (error?.response?.status === 0 || !error?.response) {
+        const errorWithResponse = error as Error & { response?: { status: number } };
+        if (errorWithResponse?.response?.status === 0 || !errorWithResponse?.response) {
           return failureCount < 2;
         }
         return false;

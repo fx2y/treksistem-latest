@@ -41,6 +41,14 @@ export class TrustMechanismError extends Error {
     super(message);
     this.name = 'TrustMechanismError';
   }
+
+  get code(): string | undefined {
+    return this._code;
+  }
+
+  get details(): any {
+    return this._details;
+  }
 }
 
 /**
