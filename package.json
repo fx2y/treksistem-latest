@@ -40,6 +40,9 @@
     "logs:worker": "wrangler tail",
     "logs:pages": "echo 'Check Cloudflare Pages dashboard for frontend logs'",
     "test:api:local": "newman run postman/Treksistem_API_Working.postman_collection.json -e postman/Local_Dev.postman_environment.json --reporters cli,htmlextra --reporter-htmlextra-export postman/report.html --reporter-htmlextra-title 'Treksistem API Test Report' --reporter-htmlextra-logs",
+    "test:api:staging": "newman run postman/Treksistem_API_Working.postman_collection.json -e postman/Staging_Sandbox.postman_environment.json --reporters cli,htmlextra --reporter-htmlextra-export postman/report-staging.html --reporter-htmlextra-title 'Treksistem Staging API Test Report' --reporter-htmlextra-logs",
+    "qa:staging": "./scripts/staging-qa-verify.sh",
+    "qa:staging:api-only": "./scripts/staging-qa-verify.sh --api-only",
     "prepare": "husky"
   },
   "lint-staged": {
