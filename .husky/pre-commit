@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "Running pre-commit hooks..."
+
+# Check if pnpm is available, otherwise fallback to npx
+if command -v pnpm >/dev/null 2>&1; then
+  PNPM_CMD="pnpm"
+else
+  PNPM_CMD="npx"
+fi
+
+# Run lint-staged
+${PNPM_CMD} lint-staged
+
+# Exit with status of lint-staged
+exit $?

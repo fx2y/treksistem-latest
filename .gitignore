@@ -12,3 +12,5 @@ tsconfig.tsbuildinfo
 .wrangler
 
 .turbo
+
+.cursor/rules
