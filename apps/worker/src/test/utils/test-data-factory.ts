@@ -1,8 +1,5 @@
 import { createId } from '@paralleldrive/cuid2';
-import type {
-  CreateServicePayload,
-  ServiceConfigBase,
-} from '@treksistem/shared-types';
+import type { CreateServicePayload, ServiceConfigBase } from '@treksistem/shared-types';
 
 /**
  * Test Data Factory for Mitra API Testing
