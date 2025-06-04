@@ -13,15 +13,15 @@ adminRoutes.use('*', cfAccessAuth);
 adminRoutes.get('/usage-report', async (c) => {
   try {
     const report = usageMonitor.generateUsageReport();
-    
+
     return c.json({
       success: true,
       data: {
         ...report,
         generatedAt: new Date().toISOString(),
         complianceStatus: 'RFC-TREK-COST-001 Compliant',
-        freeTierStatus: report.projectedUpgradeCost === 0 ? 'within_limits' : 'approaching_limits'
-      }
+        freeTierStatus: report.projectedUpgradeCost === 0 ? 'within_limits' : 'approaching_limits',
+      },
     });
   } catch (error) {
     console.error('Usage report generation failed:', error);
@@ -32,7 +32,7 @@ adminRoutes.get('/usage-report', async (c) => {
 adminRoutes.get('/cost-insights', async (c) => {
   try {
     const insights = getCostOptimizationInsights();
-    
+
     return c.json({
       success: true,
       data: {
@@ -40,9 +40,9 @@ adminRoutes.get('/cost-insights', async (c) => {
         rfcCompliance: {
           rfc: 'RFC-TREK-COST-001',
           status: insights.status === 'within_free_tier' ? 'compliant' : 'needs_attention',
-          principle: 'near-zero cost IT operations'
-        }
-      }
+          principle: 'near-zero cost IT operations',
+        },
+      },
     });
   } catch (error) {
     console.error('Cost insights generation failed:', error);
@@ -54,17 +54,17 @@ adminRoutes.get('/usage-alerts', async (c) => {
   try {
     const limit = parseInt(c.req.query('limit') || '20');
     const alerts = usageMonitor.getRecentAlerts(limit);
-    
+
     return c.json({
       success: true,
       data: {
         alerts,
         summary: {
           total: alerts.length,
-          critical: alerts.filter(a => a.severity === 'critical').length,
-          warning: alerts.filter(a => a.severity === 'warning').length
-        }
-      }
+          critical: alerts.filter((a) => a.severity === 'critical').length,
+          warning: alerts.filter((a) => a.severity === 'warning').length,
+        },
+      },
     });
   } catch (error) {
     console.error('Usage alerts retrieval failed:', error);
@@ -75,11 +75,11 @@ adminRoutes.get('/usage-alerts', async (c) => {
 adminRoutes.post('/usage-cleanup', async (c) => {
   try {
     usageMonitor.cleanupOldMetrics();
-    
+
     return c.json({
       success: true,
       message: 'Usage metrics cleanup completed',
-      cleanupDate: new Date().toISOString()
+      cleanupDate: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Usage cleanup failed:', error);
@@ -90,7 +90,7 @@ adminRoutes.post('/usage-cleanup', async (c) => {
 adminRoutes.get('/rate-limit-stats', async (c) => {
   try {
     const stats = getRateLimitStats();
-    
+
     return c.json({
       success: true,
       data: {
@@ -101,15 +101,18 @@ adminRoutes.get('/rate-limit-stats', async (c) => {
           configuredEndpoints: Object.keys(stats.configs),
         },
         timestamp: new Date().toISOString(),
-      }
+      },
     });
   } catch (error) {
     console.error('Rate limit stats retrieval failed:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Failed to retrieve rate limit statistics' 
-    }, 500);
+    return c.json(
+      {
+        success: false,
+        error: 'Failed to retrieve rate limit statistics',
+      },
+      500,
+    );
   }
 });
 
-export default adminRoutes; 
+export default adminRoutes;

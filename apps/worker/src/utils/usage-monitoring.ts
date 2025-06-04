@@ -1,6 +1,6 @@
 /**
  * Usage Monitoring Utility for Treksistem
- * 
+ *
  * Tracks Cloudflare service usage to ensure free tier compliance
  * and provide cost optimization insights per RFC-TREK-COST-001
  */
@@ -94,12 +94,12 @@ export class UsageMonitor {
    */
   trackWorkerRequest(cpuTimeMs: number = 1): void {
     console.log(`USAGE_METRIC: worker_request=1 cpu_time_ms=${cpuTimeMs}`);
-    
+
     // Update current metrics
     const currentMetrics = this.getCurrentMetrics();
     currentMetrics.workerRequests += 1;
     currentMetrics.cpuTimeMs += cpuTimeMs;
-    
+
     this.checkWorkerLimits(currentMetrics);
   }
 
@@ -108,25 +108,25 @@ export class UsageMonitor {
    */
   trackD1Operation(operation: 'read' | 'write', rowCount: number, queryMeta?: any): void {
     console.log(`USAGE_METRIC: d1_${operation}=${rowCount}`);
-    
+
     const currentMetrics = this.getCurrentMetrics();
-    
+
     if (operation === 'read') {
       currentMetrics.d1RowsRead += rowCount;
     } else {
       currentMetrics.d1RowsWritten += rowCount;
     }
-    
+
     // Log query performance if meta available
     if (queryMeta) {
       const duration = queryMeta.duration || 0;
       console.log(`USAGE_METRIC: d1_query_duration_ms=${duration}`);
-      
+
       if (duration > 100) {
         console.warn(`SLOW_QUERY: D1 query took ${duration}ms - consider optimization`);
       }
     }
-    
+
     this.checkD1Limits(currentMetrics);
   }
 
@@ -135,7 +135,7 @@ export class UsageMonitor {
    */
   trackR2Operation(operation: 'put' | 'get' | 'delete', sizeBytes?: number): void {
     const currentMetrics = this.getCurrentMetrics();
-    
+
     if (operation === 'put' || operation === 'delete') {
       currentMetrics.r2ClassAOps += 1;
       console.log(`USAGE_METRIC: r2_class_a_ops=1`);
@@ -143,7 +143,7 @@ export class UsageMonitor {
       currentMetrics.r2ClassBOps += 1;
       console.log(`USAGE_METRIC: r2_class_b_ops=1`);
     }
-    
+
     if (sizeBytes) {
       if (operation === 'put') {
         currentMetrics.r2StorageBytes += sizeBytes;
@@ -152,7 +152,7 @@ export class UsageMonitor {
       }
       console.log(`USAGE_METRIC: r2_storage_bytes=${currentMetrics.r2StorageBytes}`);
     }
-    
+
     this.checkR2Limits(currentMetrics);
   }
 
@@ -161,8 +161,8 @@ export class UsageMonitor {
    */
   private getCurrentMetrics(): UsageMetrics {
     const today = new Date().toDateString();
-    let todayMetrics = this.metrics.find(m => new Date(m.timestamp).toDateString() === today);
-    
+    let todayMetrics = this.metrics.find((m) => new Date(m.timestamp).toDateString() === today);
+
     if (!todayMetrics) {
       todayMetrics = {
         timestamp: Date.now(),
@@ -176,7 +176,7 @@ export class UsageMonitor {
       };
       this.metrics.push(todayMetrics);
     }
-    
+
     return todayMetrics;
   }
 
@@ -185,9 +185,14 @@ export class UsageMonitor {
    */
   private checkWorkerLimits(metrics: UsageMetrics): void {
     if (metrics.workerRequests >= ALERT_THRESHOLDS.workers.requestsPerDay) {
-      this.createAlert('workers', 'requests_per_day', metrics.workerRequests, 
-        FREE_TIER_LIMITS.workers.requestsPerDay, 'warning',
-        `Worker requests approaching daily limit: ${metrics.workerRequests}/${FREE_TIER_LIMITS.workers.requestsPerDay}`);
+      this.createAlert(
+        'workers',
+        'requests_per_day',
+        metrics.workerRequests,
+        FREE_TIER_LIMITS.workers.requestsPerDay,
+        'warning',
+        `Worker requests approaching daily limit: ${metrics.workerRequests}/${FREE_TIER_LIMITS.workers.requestsPerDay}`,
+      );
     }
   }
 
@@ -196,15 +201,25 @@ export class UsageMonitor {
    */
   private checkD1Limits(metrics: UsageMetrics): void {
     if (metrics.d1RowsRead >= ALERT_THRESHOLDS.d1.rowsReadPerDay) {
-      this.createAlert('d1', 'rows_read_per_day', metrics.d1RowsRead,
-        FREE_TIER_LIMITS.d1.rowsReadPerDay, 'warning',
-        `D1 row reads approaching daily limit: ${metrics.d1RowsRead}/${FREE_TIER_LIMITS.d1.rowsReadPerDay}`);
+      this.createAlert(
+        'd1',
+        'rows_read_per_day',
+        metrics.d1RowsRead,
+        FREE_TIER_LIMITS.d1.rowsReadPerDay,
+        'warning',
+        `D1 row reads approaching daily limit: ${metrics.d1RowsRead}/${FREE_TIER_LIMITS.d1.rowsReadPerDay}`,
+      );
     }
-    
+
     if (metrics.d1RowsWritten >= ALERT_THRESHOLDS.d1.rowsWrittenPerDay) {
-      this.createAlert('d1', 'rows_written_per_day', metrics.d1RowsWritten,
-        FREE_TIER_LIMITS.d1.rowsWrittenPerDay, 'warning',
-        `D1 row writes approaching daily limit: ${metrics.d1RowsWritten}/${FREE_TIER_LIMITS.d1.rowsWrittenPerDay}`);
+      this.createAlert(
+        'd1',
+        'rows_written_per_day',
+        metrics.d1RowsWritten,
+        FREE_TIER_LIMITS.d1.rowsWrittenPerDay,
+        'warning',
+        `D1 row writes approaching daily limit: ${metrics.d1RowsWritten}/${FREE_TIER_LIMITS.d1.rowsWrittenPerDay}`,
+      );
     }
   }
 
@@ -213,17 +228,28 @@ export class UsageMonitor {
    */
   private checkR2Limits(metrics: UsageMetrics): void {
     if (metrics.r2StorageBytes >= ALERT_THRESHOLDS.r2.storageBytes) {
-      this.createAlert('r2', 'storage_bytes', metrics.r2StorageBytes,
-        FREE_TIER_LIMITS.r2.storageBytes, 'warning',
-        `R2 storage approaching limit: ${(metrics.r2StorageBytes / (1024**3)).toFixed(2)}GB/${(FREE_TIER_LIMITS.r2.storageBytes / (1024**3)).toFixed(0)}GB`);
+      this.createAlert(
+        'r2',
+        'storage_bytes',
+        metrics.r2StorageBytes,
+        FREE_TIER_LIMITS.r2.storageBytes,
+        'warning',
+        `R2 storage approaching limit: ${(metrics.r2StorageBytes / 1024 ** 3).toFixed(2)}GB/${(FREE_TIER_LIMITS.r2.storageBytes / 1024 ** 3).toFixed(0)}GB`,
+      );
     }
   }
 
   /**
    * Create a usage alert
    */
-  private createAlert(service: UsageAlert['service'], metric: string, currentValue: number, 
-                     threshold: number, severity: UsageAlert['severity'], message: string): void {
+  private createAlert(
+    service: UsageAlert['service'],
+    metric: string,
+    currentValue: number,
+    threshold: number,
+    severity: UsageAlert['severity'],
+    message: string,
+  ): void {
     const alert: UsageAlert = {
       id: createId(),
       timestamp: Date.now(),
@@ -234,10 +260,10 @@ export class UsageMonitor {
       severity,
       message,
     };
-    
+
     this.alerts.push(alert);
     console.warn(`USAGE_ALERT: ${alert.message}`);
-    
+
     // Keep only last 100 alerts
     if (this.alerts.length > 100) {
       this.alerts = this.alerts.slice(-100);
@@ -258,9 +284,11 @@ export class UsageMonitor {
         category: 'query_optimization',
         priority: 'high',
         title: 'Optimize Database Queries',
-        description: 'High D1 row read usage detected. Consider adding indexes, optimizing queries, or implementing more aggressive caching.',
+        description:
+          'High D1 row read usage detected. Consider adding indexes, optimizing queries, or implementing more aggressive caching.',
         estimatedSavings: '20-40% reduction in D1 reads',
-        implementation: 'Review slow queries, add strategic indexes, implement TanStack Query with longer stale times',
+        implementation:
+          'Review slow queries, add strategic indexes, implement TanStack Query with longer stale times',
       });
     }
 
@@ -271,9 +299,11 @@ export class UsageMonitor {
         category: 'caching',
         priority: 'medium',
         title: 'Implement Aggressive Caching',
-        description: 'High Worker request volume. Implement longer cache times for static data and reduce polling frequency.',
+        description:
+          'High Worker request volume. Implement longer cache times for static data and reduce polling frequency.',
         estimatedSavings: '30-50% reduction in Worker requests',
-        implementation: 'Increase TanStack Query staleTime, implement service worker caching, reduce polling intervals',
+        implementation:
+          'Increase TanStack Query staleTime, implement service worker caching, reduce polling intervals',
       });
     }
 
@@ -284,9 +314,11 @@ export class UsageMonitor {
         category: 'storage',
         priority: 'medium',
         title: 'Implement Image Compression',
-        description: 'R2 storage usage growing. Implement client-side image compression before upload.',
+        description:
+          'R2 storage usage growing. Implement client-side image compression before upload.',
         estimatedSavings: '60-80% reduction in storage usage',
-        implementation: 'Add image compression in driver app before R2 upload, implement progressive JPEG',
+        implementation:
+          'Add image compression in driver app before R2 upload, implement progressive JPEG',
       });
     }
 
@@ -296,9 +328,11 @@ export class UsageMonitor {
       category: 'request_reduction',
       priority: 'low',
       title: 'Optimize Polling Patterns',
-      description: 'Review polling intervals across all frontends to balance real-time updates with request efficiency.',
+      description:
+        'Review polling intervals across all frontends to balance real-time updates with request efficiency.',
       estimatedSavings: '10-20% reduction in Worker requests',
-      implementation: 'Implement exponential backoff for polling, use WebSockets for real-time updates when needed',
+      implementation:
+        'Implement exponential backoff for polling, use WebSockets for real-time updates when needed',
     });
 
     return recommendations;
@@ -315,16 +349,17 @@ export class UsageMonitor {
     projectedUpgradeCost: number;
   } {
     const currentMetrics = this.getCurrentMetrics();
-    
+
     const utilizationPercentages = {
-      workerRequests: (currentMetrics.workerRequests / FREE_TIER_LIMITS.workers.requestsPerDay) * 100,
+      workerRequests:
+        (currentMetrics.workerRequests / FREE_TIER_LIMITS.workers.requestsPerDay) * 100,
       d1RowsRead: (currentMetrics.d1RowsRead / FREE_TIER_LIMITS.d1.rowsReadPerDay) * 100,
       d1RowsWritten: (currentMetrics.d1RowsWritten / FREE_TIER_LIMITS.d1.rowsWrittenPerDay) * 100,
       r2Storage: (currentMetrics.r2StorageBytes / FREE_TIER_LIMITS.r2.storageBytes) * 100,
     };
 
     // Calculate projected upgrade cost (Workers Paid plan is $5/month)
-    const needsUpgrade = Object.values(utilizationPercentages).some(pct => pct > 80);
+    const needsUpgrade = Object.values(utilizationPercentages).some((pct) => pct > 80);
     const projectedUpgradeCost = needsUpgrade ? 5 : 0; // $5/month for Workers Paid
 
     return {
@@ -347,9 +382,9 @@ export class UsageMonitor {
    * Clear old metrics (keep last 30 days)
    */
   cleanupOldMetrics(): void {
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-    this.metrics = this.metrics.filter(m => m.timestamp > thirtyDaysAgo);
-    this.alerts = this.alerts.filter(a => a.timestamp > thirtyDaysAgo);
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    this.metrics = this.metrics.filter((m) => m.timestamp > thirtyDaysAgo);
+    this.alerts = this.alerts.filter((a) => a.timestamp > thirtyDaysAgo);
   }
 }
 
@@ -363,9 +398,9 @@ export const usageMonitor = new UsageMonitor();
  */
 export const usageTrackingMiddleware = async (c: any, next: any) => {
   const startTime = Date.now();
-  
+
   await next();
-  
+
   const cpuTime = Date.now() - startTime;
   usageMonitor.trackWorkerRequest(cpuTime);
 };
@@ -375,7 +410,7 @@ export const usageTrackingMiddleware = async (c: any, next: any) => {
  */
 export const trackD1QueryResult = (result: any, operation: 'read' | 'write' = 'read') => {
   let rowCount = 0;
-  
+
   if (result && typeof result === 'object') {
     // Handle different Drizzle result types
     if (Array.isArray(result)) {
@@ -392,7 +427,7 @@ export const trackD1QueryResult = (result: any, operation: 'read' | 'write' = 'r
       rowCount = 1; // Default for single operations
     }
   }
-  
+
   usageMonitor.trackD1Operation(operation, rowCount, result?.meta);
   return result;
 };
@@ -415,12 +450,12 @@ export const trackR2Download = (key: string) => {
  */
 export const getCostOptimizationInsights = () => {
   const report = usageMonitor.generateUsageReport();
-  
+
   return {
     status: report.projectedUpgradeCost > 0 ? 'upgrade_recommended' : 'within_free_tier',
     monthlyProjectedCost: report.projectedUpgradeCost,
     topRecommendations: report.recommendations.slice(0, 3),
-    criticalAlerts: report.alerts.filter(a => a.severity === 'critical'),
+    criticalAlerts: report.alerts.filter((a) => a.severity === 'critical'),
     utilizationSummary: report.utilizationPercentages,
   };
-}; 
+};

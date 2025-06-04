@@ -11,21 +11,24 @@ const testSecurityRoutes = new Hono<AppContext>();
  */
 testSecurityRoutes.get('/headers', (c) => {
   const headersConfig = getSecurityHeadersConfig();
-  
+
   return c.json({
     success: true,
     data: {
       message: 'Security headers configuration and verification',
       securityHeaders: headersConfig,
-      appliedHeaders: Object.keys(headersConfig).reduce((acc, headerName) => {
-        // Check if the header was actually applied to this response
-        const headerValue = c.res.headers.get(headerName);
-        acc[headerName] = {
-          configured: headersConfig[headerName as keyof typeof headersConfig],
-          applied: headerValue || 'Not yet applied (will be applied after response)',
-        };
-        return acc;
-      }, {} as Record<string, { configured: string; applied: string }>),
+      appliedHeaders: Object.keys(headersConfig).reduce(
+        (acc, headerName) => {
+          // Check if the header was actually applied to this response
+          const headerValue = c.res.headers.get(headerName);
+          acc[headerName] = {
+            configured: headersConfig[headerName as keyof typeof headersConfig],
+            applied: headerValue || 'Not yet applied (will be applied after response)',
+          };
+          return acc;
+        },
+        {} as Record<string, { configured: string; applied: string }>,
+      ),
       timestamp: new Date().toISOString(),
     },
   });
@@ -59,7 +62,7 @@ testSecurityRoutes.get('/csp-test', (c) => {
  */
 testSecurityRoutes.get('/security-audit', (c) => {
   const headersConfig = getSecurityHeadersConfig();
-  
+
   return c.json({
     success: true,
     data: {
@@ -89,4 +92,4 @@ testSecurityRoutes.get('/security-audit', (c) => {
   });
 });
 
-export default testSecurityRoutes; 
+export default testSecurityRoutes;

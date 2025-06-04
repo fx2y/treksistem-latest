@@ -6,14 +6,14 @@
 import {
   // Service Config Types
   ServiceConfigBaseSchema,
-  
+
   // Order Types
   OrderPlacementPayloadSchema,
   PhoneNumberSchema,
-  
+
   // API Types
   ApiResponseSchema,
-  
+
   // Type exports
   type ServiceConfigBase,
   type OrderPlacementPayload,
@@ -22,65 +22,67 @@ import {
 
 // Test service configuration
 const testServiceConfig: ServiceConfigBase = {
-  serviceTypeAlias: "Test Ojek Motor",
-  modelBisnis: "USAHA_SENDIRI",
-  angkutanUtama: "MOTOR",
-  driverGenderConstraint: "SEMUA",
-  modelRute: "DYNAMIC_P2P",
-  privasiMassal: "PRIVATE_SINGLE_ORDER",
-  waktuLayananDefault: "EXPRESS_NOW",
-  allowedModelOrder: ["PANGGIL_KE_ORDERER"],
-  penanggungJawabOrder: "KETEMU_LANGSUNG",
+  serviceTypeAlias: 'Test Ojek Motor',
+  modelBisnis: 'USAHA_SENDIRI',
+  angkutanUtama: 'MOTOR',
+  driverGenderConstraint: 'SEMUA',
+  modelRute: 'DYNAMIC_P2P',
+  privasiMassal: 'PRIVATE_SINGLE_ORDER',
+  waktuLayananDefault: 'EXPRESS_NOW',
+  allowedModelOrder: ['PANGGIL_KE_ORDERER'],
+  penanggungJawabOrder: 'KETEMU_LANGSUNG',
   fiturTalangan: { enabled: false },
-  alurLayanan: "DIRECT_PICKUP_DELIVER",
+  alurLayanan: 'DIRECT_PICKUP_DELIVER',
   isBarangPentingDefault: false,
   jangkauanLayanan: { maxDistanceKm: 15 },
   pricing: {
     biayaAdminPerOrder: 2000,
-    modelHargaJarak: "PER_KM",
-    biayaPerKm: 3500
-  }
+    modelHargaJarak: 'PER_KM',
+    biayaPerKm: 3500,
+  },
 };
 
 // Test order placement
 const testOrderPayload: OrderPlacementPayload = {
-  serviceId: "srv_test123",
-  ordererIdentifier: "+6281234567890",
+  serviceId: 'srv_test123',
+  ordererIdentifier: '+6281234567890',
   details: {
     pickupAddress: {
-      text: "Test Pickup Location",
-      lat: -7.966620,
-      lon: 112.632632
+      text: 'Test Pickup Location',
+      lat: -7.96662,
+      lon: 112.632632,
     },
     dropoffAddress: {
-      text: "Test Dropoff Location", 
-      lat: -7.975620,
-      lon: 112.635632
-    }
+      text: 'Test Dropoff Location',
+      lat: -7.97562,
+      lon: 112.635632,
+    },
   },
-  paymentMethod: "CASH",
-  isBarangPenting: false
+  paymentMethod: 'CASH',
+  isBarangPenting: false,
 };
 
 // Validation tests
 const serviceConfigValidation = ServiceConfigBaseSchema.safeParse(testServiceConfig);
 const orderValidation = OrderPlacementPayloadSchema.safeParse(testOrderPayload);
-const phoneValidation = PhoneNumberSchema.safeParse("+6281234567890");
+const phoneValidation = PhoneNumberSchema.safeParse('+6281234567890');
 
 // API response test
 const testApiResponse: ApiResponse<{ orderId: string }> = {
   success: true,
-  data: { orderId: "ord_test123" },
-  message: "Order created successfully"
+  data: { orderId: 'ord_test123' },
+  message: 'Order created successfully',
 };
 
 const apiResponseValidation = ApiResponseSchema.safeParse(testApiResponse);
 
 // Verify all validations pass
-if (serviceConfigValidation.success && 
-    orderValidation.success && 
-    phoneValidation.success && 
-    apiResponseValidation.success) {
+if (
+  serviceConfigValidation.success &&
+  orderValidation.success &&
+  phoneValidation.success &&
+  apiResponseValidation.success
+) {
   console.log('✅ All integration tests passed');
   console.log('✅ Service config validation:', serviceConfigValidation.success);
   console.log('✅ Order validation:', orderValidation.success);
@@ -102,4 +104,4 @@ if (serviceConfigValidation.success &&
   }
 }
 
-export {}; 
+export {};

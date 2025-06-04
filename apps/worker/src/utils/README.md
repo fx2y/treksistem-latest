@@ -24,14 +24,14 @@ import { calculateHaversineDistance, calculateDistance } from './utils/geo';
 // Synchronous Haversine calculation
 const distance = calculateHaversineDistance(
   { lat: -6.2088, lon: 106.8456 }, // Jakarta
-  { lat: -6.9175, lon: 107.6191 }  // Bandung
+  { lat: -6.9175, lon: 107.6191 }, // Bandung
 );
 console.log(`Distance: ${distance.toFixed(2)} km`); // ~116.24 km
 
 // Async calculation with metadata
 const result = await calculateDistance(
   { lat: -6.2088, lon: 106.8456 },
-  { lat: -6.9175, lon: 107.6191 }
+  { lat: -6.9175, lon: 107.6191 },
 );
 console.log(result);
 // {
@@ -48,16 +48,16 @@ import { calculateOrderDistance } from './utils/geo';
 import type { AddressDetail } from '@treksistem/shared-types';
 
 const pickup: AddressDetail = {
-  text: "Jakarta Central Station",
+  text: 'Jakarta Central Station',
   lat: -6.2088,
   lon: 106.8456,
-  notes: "Near the main entrance"
+  notes: 'Near the main entrance',
 };
 
 const dropoff: AddressDetail = {
-  text: "Bandung Train Station",
+  text: 'Bandung Train Station',
   lat: -6.9175,
-  lon: 107.6191
+  lon: 107.6191,
 };
 
 const result = await calculateOrderDistance(pickup, dropoff);
@@ -71,12 +71,14 @@ if (result) {
 ### Implementation Details
 
 #### Current Implementation (MVP)
+
 - **Method**: Haversine formula for great-circle distance
 - **Accuracy**: ~98.5% average accuracy for test cases
 - **Performance**: Synchronous calculation, sub-millisecond execution
 - **Limitations**: Straight-line distance only, not actual route distance
 
 #### Future Enhancements
+
 - **OSRM Integration**: Actual route distance and duration
 - **Caching**: Cache results for identical coordinate pairs
 - **Fallback Strategy**: Automatic fallback to Haversine if routing fails
@@ -114,4 +116,4 @@ The geo utility is designed to integrate with:
 ### Files
 
 - `geo.ts`: Main implementation file
-- Test endpoints were temporarily added to worker for verification and removed after successful testing 
+- Test endpoints were temporarily added to worker for verification and removed after successful testing

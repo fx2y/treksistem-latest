@@ -11,21 +11,21 @@ export const ERROR_CODES = {
   CONFLICT: 'CONFLICT',
   FORBIDDEN: 'FORBIDDEN',
   INVALID_REQUEST: 'INVALID_REQUEST',
-  
+
   // Business logic errors
   COST_CALCULATION_ERROR: 'COST_CALCULATION_ERROR',
   TRUST_MECHANISM_ERROR: 'TRUST_MECHANISM_ERROR',
   SERVICE_CONFIG_ERROR: 'SERVICE_CONFIG_ERROR',
   ORDER_STATUS_ERROR: 'ORDER_STATUS_ERROR',
   DRIVER_ASSIGNMENT_ERROR: 'DRIVER_ASSIGNMENT_ERROR',
-  
+
   // Server errors (5xx)
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
 } as const;
 
-export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
 /**
  * Standard error response structure per RFC-TREK-ERROR-001
@@ -47,7 +47,7 @@ export class AppError extends Error {
     message: string,
     public _code: string,
     public _statusCode: number = 500,
-    public _details?: any
+    public _details?: any,
   ) {
     super(message);
     this.name = 'AppError';
@@ -182,12 +182,14 @@ export class Logger {
 
   static error(message: string, error?: Error, context?: Record<string, any>): void {
     const timestamp = new Date().toISOString();
-    const errorInfo = error ? {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    } : {};
-    
+    const errorInfo = error
+      ? {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+        }
+      : {};
+
     console.error(`[ERROR: ${timestamp}] ${message}`, {
       ...errorInfo,
       ...context,
@@ -210,11 +212,11 @@ export function handleDatabaseError(error: any, operation: string): never {
   if (error.message?.includes('UNIQUE constraint failed')) {
     throw new ConflictError('Resource already exists or constraint violation.');
   }
-  
+
   if (error.message?.includes('NOT NULL constraint failed')) {
     throw new ValidationError('Required field missing.');
   }
-  
+
   if (error.message?.includes('FOREIGN KEY constraint failed')) {
     throw new ValidationError('Invalid reference to related resource.');
   }
@@ -225,15 +227,13 @@ export function handleDatabaseError(error: any, operation: string): never {
 /**
  * Async error wrapper for route handlers
  */
-export function asyncHandler<T extends any[], R>(
-  fn: (...args: T) => Promise<R>
-) {
+export function asyncHandler<T extends any[], R>(fn: (...args: T) => Promise<R>) {
   return (..._args: T): Promise<R> => {
     return Promise.resolve(fn(..._args)).catch((error) => {
       if (error instanceof AppError) {
         throw error;
       }
-      
+
       Logger.error('Unhandled error in async handler', error);
       throw new AppError('Internal server error', ERROR_CODES.INTERNAL_ERROR, 500);
     });
@@ -251,4 +251,4 @@ export function validateCuid(id: string, fieldName: string = 'ID'): void {
       expected: 'CUID format (25 lowercase alphanumeric characters)',
     });
   }
-} 
+}

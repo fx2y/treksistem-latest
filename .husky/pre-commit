@@ -1,14 +1,41 @@
-echo "Running pre-commit hooks..."
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
-# Check if pnpm is available, otherwise fallback to npx
-if command -v pnpm >/dev/null 2>&1; then
-  PNPM_CMD="pnpm"
-else
-  PNPM_CMD="npx"
-fi
+echo "🔍 Running pre-commit checks..."
 
-# Run lint-staged
-${PNPM_CMD} lint-staged
+# 1. Run type checking
+echo "📝 Type checking..."
+pnpm type-check || {
+  echo "❌ Type checking failed. Please fix TypeScript errors."
+  exit 1
+}
 
-# Exit with status of lint-staged
-exit $?
+# 2. Run linting with auto-fix
+echo "🔧 Linting and auto-fixing..."
+pnpm lint:fix || {
+  echo "❌ Linting failed. Please fix linting errors."
+  exit 1
+}
+
+# 3. Run formatting
+echo "💅 Formatting code..."
+pnpm format || {
+  echo "❌ Formatting failed."
+  exit 1
+}
+
+# 4. Run unit tests
+echo "🧪 Running unit tests..."
+pnpm test:unit || {
+  echo "❌ Unit tests failed. Please fix failing tests."
+  exit 1
+}
+
+# 5. Build check
+echo "🏗️ Build check..."
+pnpm build || {
+  echo "❌ Build failed. Please fix build errors."
+  exit 1
+}
+
+echo "✅ All pre-commit checks passed!"

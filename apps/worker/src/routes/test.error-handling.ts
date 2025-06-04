@@ -2,13 +2,13 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { HTTPException } from 'hono/http-exception';
-import { 
-  AppError, 
-  ValidationError, 
-  AuthError, 
-  ForbiddenError, 
-  NotFoundError, 
-  ConflictError, 
+import {
+  AppError,
+  ValidationError,
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  ConflictError,
   DatabaseError,
   ServiceConfigError,
   OrderStatusError,
@@ -16,7 +16,7 @@ import {
   Logger,
   handleDatabaseError,
   validateCuid,
-  ERROR_CODES
+  ERROR_CODES,
 } from '../utils/error-handling';
 import type { AppContext } from '../types';
 
@@ -39,12 +39,16 @@ testErrorRoutes.get('/http-exception', (_c) => {
 /**
  * Test Zod validation error
  */
-testErrorRoutes.post('/validation-error', 
-  zValidator('json', z.object({
-    requiredField: z.string().min(1, 'Required field cannot be empty'),
-    email: z.string().email('Invalid email format'),
-    age: z.number().int().min(18, 'Must be at least 18 years old'),
-  })), 
+testErrorRoutes.post(
+  '/validation-error',
+  zValidator(
+    'json',
+    z.object({
+      requiredField: z.string().min(1, 'Required field cannot be empty'),
+      email: z.string().email('Invalid email format'),
+      age: z.number().int().min(18, 'Must be at least 18 years old'),
+    }),
+  ),
   (c) => {
     const data = c.req.valid('json');
     return c.json({
@@ -54,7 +58,7 @@ testErrorRoutes.post('/validation-error',
         receivedData: data,
       },
     });
-  }
+  },
 );
 
 /**
@@ -69,45 +73,45 @@ testErrorRoutes.get('/app-error/:errorType', (c) => {
         field: 'testField',
         value: 'invalidValue',
       });
-    
+
     case 'auth':
       throw new AuthError('Test authentication error');
-    
+
     case 'forbidden':
       throw new ForbiddenError('Test authorization error');
-    
+
     case 'not-found':
       throw new NotFoundError('Test resource not found error');
-    
+
     case 'conflict':
       throw new ConflictError('Test resource conflict error');
-    
+
     case 'database':
       throw new DatabaseError('Test database error', {
         operation: 'SELECT',
         table: 'test_table',
       });
-    
+
     case 'service-config':
       throw new ServiceConfigError('Test service configuration error', {
         configField: 'pricing.biayaPerKm',
         issue: 'missing_value',
       });
-    
+
     case 'order-status':
       throw new OrderStatusError('Test order status error', {
         currentStatus: 'PENDING',
         attemptedStatus: 'COMPLETED',
         orderId: 'test-order-123',
       });
-    
+
     case 'driver-assignment':
       throw new DriverAssignmentError('Test driver assignment error', {
         driverId: 'test-driver-123',
         orderId: 'test-order-123',
         reason: 'driver_not_available',
       });
-    
+
     default:
       throw new AppError('Test generic app error', ERROR_CODES.INTERNAL_ERROR, 500, {
         errorType,
@@ -128,19 +132,19 @@ testErrorRoutes.get('/database-error/:errorType', (_c) => {
       handleDatabaseError(uniqueError, 'user creation');
       break;
     }
-    
+
     case 'not-null-constraint': {
       const notNullError = new Error('NOT NULL constraint failed: orders.service_id');
       handleDatabaseError(notNullError, 'order creation');
       break;
     }
-    
+
     case 'foreign-key-constraint': {
       const fkError = new Error('FOREIGN KEY constraint failed');
       handleDatabaseError(fkError, 'relationship creation');
       break;
     }
-    
+
     default: {
       const genericDbError = new Error('Database connection timeout');
       handleDatabaseError(genericDbError, 'generic operation');
@@ -153,14 +157,18 @@ testErrorRoutes.get('/database-error/:errorType', (_c) => {
 /**
  * Test CUID validation utility
  */
-testErrorRoutes.post('/cuid-validation',
-  zValidator('json', z.object({
-    id: z.string(),
-    fieldName: z.string().optional(),
-  })),
+testErrorRoutes.post(
+  '/cuid-validation',
+  zValidator(
+    'json',
+    z.object({
+      id: z.string(),
+      fieldName: z.string().optional(),
+    }),
+  ),
   (_c) => {
     const { id, fieldName } = _c.req.valid('json');
-    
+
     validateCuid(id, fieldName || 'ID');
     return _c.json({
       success: true,
@@ -169,7 +177,7 @@ testErrorRoutes.post('/cuid-validation',
         validatedId: id,
       },
     });
-  }
+  },
 );
 
 /**
@@ -185,7 +193,7 @@ testErrorRoutes.get('/logger-test', (c) => {
   Logger.info('Testing info log', testContext);
   Logger.warn('Testing warning log', { ...testContext, warningType: 'test' });
   Logger.debug('Testing debug log', { ...testContext, debugData: { test: true } });
-  
+
   try {
     throw new Error('Test error for logger');
   } catch (error) {
@@ -261,4 +269,4 @@ testErrorRoutes.get('/error-format-test', (c) => {
   });
 });
 
-export default testErrorRoutes; 
+export default testErrorRoutes;

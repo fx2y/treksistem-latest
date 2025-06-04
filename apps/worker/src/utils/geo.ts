@@ -1,10 +1,10 @@
 /**
  * Geolocation and Distance Calculation Utilities
- * 
+ *
  * This module provides distance calculation functionality for the Treksistem platform.
  * Currently implements Haversine formula for MVP, with interface designed for future
  * integration with routing engines like OSRM or GraphHopper.
- * 
+ *
  * @see RFC-TREK-GEO-001 for geolocation requirements
  * @see RFC-TREK-COST-001 for cost optimization constraints
  */
@@ -41,22 +41,22 @@ export interface DistanceCalculator {
 
 /**
  * Calculates the straight-line distance between two geographic points using the Haversine formula.
- * 
+ *
  * The Haversine formula determines the great-circle distance between two points on a sphere
  * given their latitude and longitude. This provides the shortest distance over the earth's
  * surface, but does not account for actual road routes.
- * 
+ *
  * Formula:
  * - a = sin²(Δφ/2) + cos φ1 ⋅ cos φ2 ⋅ sin²(Δλ/2)
  * - c = 2 ⋅ atan2( √a, √(1−a) )
  * - d = R ⋅ c
- * 
+ *
  * Where φ is latitude, λ is longitude, R is earth's radius (6371 km)
- * 
+ *
  * @param point1 First geographic point
  * @param point2 Second geographic point
  * @returns Distance in kilometers
- * 
+ *
  * @example
  * ```typescript
  * const london = { lat: 51.5074, lon: -0.1278 };
@@ -86,12 +86,12 @@ export function calculateHaversineDistance(point1: Point, point2: Point): number
   const dLonRad = toRadians(point2.lon - point1.lon);
 
   // Haversine formula
-  const a = Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
-            Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-            Math.sin(dLonRad / 2) * Math.sin(dLonRad / 2);
-  
+  const a =
+    Math.sin(dLatRad / 2) * Math.sin(dLatRad / 2) +
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(dLonRad / 2) * Math.sin(dLonRad / 2);
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
+
   const distance = R * c;
 
   return distance;
@@ -104,14 +104,14 @@ export function calculateHaversineDistance(point1: Point, point2: Point): number
 export class HaversineDistanceCalculator implements DistanceCalculator {
   async calculate(point1: Point, point2: Point): Promise<DistanceResult> {
     const distanceKm = calculateHaversineDistance(point1, point2);
-    
+
     return {
       distanceKm,
       method: 'haversine',
       metadata: {
         note: 'Straight-line distance, not actual route distance',
-        earthRadius: 6371
-      }
+        earthRadius: 6371,
+      },
     };
   }
 }
@@ -124,7 +124,7 @@ export const defaultDistanceCalculator = new HaversineDistanceCalculator();
 
 /**
  * Convenience function for calculating distance using the default calculator
- * 
+ *
  * @param point1 First geographic point
  * @param point2 Second geographic point
  * @returns Promise resolving to distance result
@@ -138,11 +138,11 @@ export async function calculateDistance(point1: Point, point2: Point): Promise<D
 /**
  * Calculates distance between pickup and dropoff addresses from order details
  * Handles cases where coordinates might be missing
- * 
+ *
  * @param pickupAddress Pickup address details
  * @param dropoffAddress Dropoff address details
  * @returns Promise resolving to distance result or null if coordinates unavailable
- * 
+ *
  * @example
  * ```typescript
  * const pickup = { text: "Jakarta Central", lat: -6.2088, lon: 106.8456 };
@@ -155,7 +155,7 @@ export async function calculateDistance(point1: Point, point2: Point): Promise<D
  */
 export async function calculateOrderDistance(
   pickupAddress: AddressDetail,
-  dropoffAddress: AddressDetail
+  dropoffAddress: AddressDetail,
 ): Promise<DistanceResult | null> {
   // Check if both addresses have valid coordinates
   if (!hasValidCoordinates(pickupAddress) || !hasValidCoordinates(dropoffAddress)) {
@@ -164,12 +164,12 @@ export async function calculateOrderDistance(
 
   const pickup: Point = {
     lat: pickupAddress.lat!,
-    lon: pickupAddress.lon!
+    lon: pickupAddress.lon!,
   };
 
   const dropoff: Point = {
     lat: dropoffAddress.lat!,
-    lon: dropoffAddress.lon!
+    lon: dropoffAddress.lon!,
   };
 
   return calculateDistance(pickup, dropoff);
@@ -217,10 +217,10 @@ function isValidCoordinate(point: Point): boolean {
 
 /**
  * OSRM/GraphHopper Distance Calculator (Future Implementation)
- * 
+ *
  * This class will be implemented when integrating with routing engines.
  * It will provide actual route distances instead of straight-line distances.
- * 
+ *
  * Considerations for future implementation:
  * - Use free OSRM API or self-hosted instance
  * - Implement caching for identical coordinate pairs
@@ -249,4 +249,4 @@ export class RoutingDistanceCalculator implements DistanceCalculator {
     }
   }
 }
-*/ 
+*/

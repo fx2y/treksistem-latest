@@ -18,10 +18,18 @@ mitraOrderRoutes.use('*', mitraAuth);
  */
 const listOrdersQuerySchema = z.object({
   status: OrderStatusSchema.optional(),
-  serviceId: z.string().refine(isCuid, "Invalid service ID format").optional(),
-  driverId: z.string().refine(isCuid, "Invalid driver ID format").optional(),
-  dateFrom: z.string().datetime().optional().transform((val) => val ? new Date(val) : undefined),
-  dateTo: z.string().datetime().optional().transform((val) => val ? new Date(val) : undefined),
+  serviceId: z.string().refine(isCuid, 'Invalid service ID format').optional(),
+  driverId: z.string().refine(isCuid, 'Invalid driver ID format').optional(),
+  dateFrom: z
+    .string()
+    .datetime()
+    .optional()
+    .transform((val) => (val ? new Date(val) : undefined)),
+  dateTo: z
+    .string()
+    .datetime()
+    .optional()
+    .transform((val) => (val ? new Date(val) : undefined)),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(10),
 });
@@ -30,131 +38,130 @@ const listOrdersQuerySchema = z.object({
  * Schema for driver assignment
  */
 const assignDriverSchema = z.object({
-  driverId: z.string().refine(isCuid, "Invalid driver ID format"),
+  driverId: z.string().refine(isCuid, 'Invalid driver ID format'),
 });
 
 /**
  * GET /api/mitra/orders
  * List orders for the authenticated Mitra with filtering and pagination
  */
-mitraOrderRoutes.get(
-  '/',
-  zValidator('query', listOrdersQuerySchema),
-  async (c) => {
-    const queryParams = c.req.valid('query');
-    const mitraId = c.get('currentMitraId')!;
-    const db = c.get('db');
+mitraOrderRoutes.get('/', zValidator('query', listOrdersQuerySchema), async (c) => {
+  const queryParams = c.req.valid('query');
+  const mitraId = c.get('currentMitraId')!;
+  const db = c.get('db');
 
-    try {
-      // Build the base query with joins
-      const baseQuery = db
-        .select({
-          // Order fields
-          id: orders.id,
-          serviceId: orders.serviceId,
-          mitraId: orders.mitraId,
-          driverId: orders.driverId,
-          ordererIdentifier: orders.ordererIdentifier,
-          receiverWaNumber: orders.receiverWaNumber,
-          detailsJson: orders.detailsJson,
-          status: orders.status,
-          estimatedCost: orders.estimatedCost,
-          finalCost: orders.finalCost,
-          createdAt: orders.createdAt,
-          updatedAt: orders.updatedAt,
-          scheduledAt: orders.scheduledAt,
-          // Service details
-          serviceName: services.name,
-          serviceTypeKey: services.serviceTypeKey,
-          // Driver details (nullable)
-          driverName: drivers.name,
-          driverIdentifier: drivers.identifier,
-        })
-        .from(orders)
-        .leftJoin(services, eq(orders.serviceId, services.id))
-        .leftJoin(drivers, eq(orders.driverId, drivers.id));
+  try {
+    // Build the base query with joins
+    const baseQuery = db
+      .select({
+        // Order fields
+        id: orders.id,
+        serviceId: orders.serviceId,
+        mitraId: orders.mitraId,
+        driverId: orders.driverId,
+        ordererIdentifier: orders.ordererIdentifier,
+        receiverWaNumber: orders.receiverWaNumber,
+        detailsJson: orders.detailsJson,
+        status: orders.status,
+        estimatedCost: orders.estimatedCost,
+        finalCost: orders.finalCost,
+        createdAt: orders.createdAt,
+        updatedAt: orders.updatedAt,
+        scheduledAt: orders.scheduledAt,
+        // Service details
+        serviceName: services.name,
+        serviceTypeKey: services.serviceTypeKey,
+        // Driver details (nullable)
+        driverName: drivers.name,
+        driverIdentifier: drivers.identifier,
+      })
+      .from(orders)
+      .leftJoin(services, eq(orders.serviceId, services.id))
+      .leftJoin(drivers, eq(orders.driverId, drivers.id));
 
-      // Build WHERE conditions
-      const whereConditions = [eq(orders.mitraId, mitraId)];
+    // Build WHERE conditions
+    const whereConditions = [eq(orders.mitraId, mitraId)];
 
-      if (queryParams.status) {
-        whereConditions.push(eq(orders.status, queryParams.status));
-      }
+    if (queryParams.status) {
+      whereConditions.push(eq(orders.status, queryParams.status));
+    }
 
-      if (queryParams.serviceId) {
-        whereConditions.push(eq(orders.serviceId, queryParams.serviceId));
-      }
+    if (queryParams.serviceId) {
+      whereConditions.push(eq(orders.serviceId, queryParams.serviceId));
+    }
 
-      if (queryParams.driverId) {
-        whereConditions.push(eq(orders.driverId, queryParams.driverId));
-      }
+    if (queryParams.driverId) {
+      whereConditions.push(eq(orders.driverId, queryParams.driverId));
+    }
 
-      if (queryParams.dateFrom) {
-        whereConditions.push(gte(orders.createdAt, queryParams.dateFrom));
-      }
+    if (queryParams.dateFrom) {
+      whereConditions.push(gte(orders.createdAt, queryParams.dateFrom));
+    }
 
-      if (queryParams.dateTo) {
-        whereConditions.push(lte(orders.createdAt, queryParams.dateTo));
-      }
+    if (queryParams.dateTo) {
+      whereConditions.push(lte(orders.createdAt, queryParams.dateTo));
+    }
 
-      // Apply WHERE conditions and build final query
-      const finalQuery = whereConditions.length > 1 
+    // Apply WHERE conditions and build final query
+    const finalQuery =
+      whereConditions.length > 1
         ? baseQuery.where(and(...whereConditions))
         : baseQuery.where(whereConditions[0]);
 
-      // Apply ordering and pagination
-      const offset = (queryParams.page - 1) * queryParams.limit;
-      const ordersResult = await finalQuery
-        .orderBy(desc(orders.createdAt))
-        .limit(queryParams.limit + 1) // Fetch one extra to check if there are more pages
-        .offset(offset);
+    // Apply ordering and pagination
+    const offset = (queryParams.page - 1) * queryParams.limit;
+    const ordersResult = await finalQuery
+      .orderBy(desc(orders.createdAt))
+      .limit(queryParams.limit + 1) // Fetch one extra to check if there are more pages
+      .offset(offset);
 
-      // Check if there are more pages
-      const hasMore = ordersResult.length > queryParams.limit;
-      const ordersToReturn = hasMore ? ordersResult.slice(0, queryParams.limit) : ordersResult;
+    // Check if there are more pages
+    const hasMore = ordersResult.length > queryParams.limit;
+    const ordersToReturn = hasMore ? ordersResult.slice(0, queryParams.limit) : ordersResult;
 
-      // Transform the results to include nested objects
-      const transformedOrders = ordersToReturn.map(order => ({
-        id: order.id,
-        serviceId: order.serviceId,
-        mitraId: order.mitraId,
-        driverId: order.driverId,
-        ordererIdentifier: order.ordererIdentifier,
-        receiverWaNumber: order.receiverWaNumber,
-        detailsJson: order.detailsJson,
-        status: order.status,
-        estimatedCost: order.estimatedCost,
-        finalCost: order.finalCost,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        scheduledAt: order.scheduledAt,
-        service: {
-          name: order.serviceName,
-          serviceTypeKey: order.serviceTypeKey,
+    // Transform the results to include nested objects
+    const transformedOrders = ordersToReturn.map((order) => ({
+      id: order.id,
+      serviceId: order.serviceId,
+      mitraId: order.mitraId,
+      driverId: order.driverId,
+      ordererIdentifier: order.ordererIdentifier,
+      receiverWaNumber: order.receiverWaNumber,
+      detailsJson: order.detailsJson,
+      status: order.status,
+      estimatedCost: order.estimatedCost,
+      finalCost: order.finalCost,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      scheduledAt: order.scheduledAt,
+      service: {
+        name: order.serviceName,
+        serviceTypeKey: order.serviceTypeKey,
+      },
+      driver: order.driverId
+        ? {
+            name: order.driverName,
+            identifier: order.driverIdentifier,
+          }
+        : null,
+    }));
+
+    return c.json({
+      success: true,
+      data: {
+        orders: transformedOrders,
+        pagination: {
+          currentPage: queryParams.page,
+          limit: queryParams.limit,
+          hasMore,
         },
-        driver: order.driverId ? {
-          name: order.driverName,
-          identifier: order.driverIdentifier,
-        } : null,
-      }));
-
-      return c.json({
-        success: true,
-        data: {
-          orders: transformedOrders,
-          pagination: {
-            currentPage: queryParams.page,
-            limit: queryParams.limit,
-            hasMore,
-          },
-        },
-      });
-    } catch (error) {
-      console.error('[Order List] Database error:', error);
-      throw new Error('Failed to fetch orders.');
-    }
+      },
+    });
+  } catch (error) {
+    console.error('[Order List] Database error:', error);
+    throw new Error('Failed to fetch orders.');
   }
-);
+});
 
 /**
  * GET /api/mitra/orders/:orderId
@@ -167,13 +174,16 @@ mitraOrderRoutes.get('/:orderId', async (c) => {
 
   // Validate orderId format
   if (!orderId || !isCuid(orderId)) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'INVALID_PARAM',
-        message: 'Invalid order ID format.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PARAM',
+          message: 'Invalid order ID format.',
+        },
       },
-    }, 400);
+      400,
+    );
   }
 
   try {
@@ -214,13 +224,16 @@ mitraOrderRoutes.get('/:orderId', async (c) => {
     });
 
     if (!orderWithDetails) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Order not found or not owned by this Mitra.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Order not found or not owned by this Mitra.',
+          },
         },
-      }, 404);
+        404,
+      );
     }
 
     return c.json({
@@ -248,13 +261,16 @@ mitraOrderRoutes.post(
 
     // Validate orderId format
     if (!orderId || !isCuid(orderId)) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'INVALID_PARAM',
-          message: 'Invalid order ID format.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_PARAM',
+            message: 'Invalid order ID format.',
+          },
         },
-      }, 400);
+        400,
+      );
     }
 
     try {
@@ -270,13 +286,16 @@ mitraOrderRoutes.post(
       });
 
       if (!order) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Order not found or not owned by this Mitra.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Order not found or not owned by this Mitra.',
+            },
           },
-        }, 404);
+          404,
+        );
       }
 
       // 2. Verify order status is assignable
@@ -288,13 +307,16 @@ mitraOrderRoutes.post(
       ];
 
       if (!assignableStatuses.includes(order.status as any)) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'CONFLICT',
-            message: 'Order is not in an assignable state.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'CONFLICT',
+              message: 'Order is not in an assignable state.',
+            },
           },
-        }, 409);
+          409,
+        );
       }
 
       // 3. Fetch and verify the driver
@@ -308,41 +330,50 @@ mitraOrderRoutes.post(
       });
 
       if (!driver) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Driver not found or not owned by this Mitra.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Driver not found or not owned by this Mitra.',
+            },
           },
-        }, 404);
+          404,
+        );
       }
 
       if (!driver.isActive) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'BAD_REQUEST',
-            message: 'Driver is not active.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'BAD_REQUEST',
+              message: 'Driver is not active.',
+            },
           },
-        }, 400);
+          400,
+        );
       }
 
       // 4. Verify driver is assigned to the service type
       const driverServiceAssignment = await db.query.driverServices.findFirst({
         where: and(
           eq(driverServices.driverId, driverId),
-          eq(driverServices.serviceId, order.serviceId)
+          eq(driverServices.serviceId, order.serviceId),
         ),
       });
 
       if (!driverServiceAssignment) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'BAD_REQUEST',
-            message: 'Driver is not qualified for this service type.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'BAD_REQUEST',
+              message: 'Driver is not qualified for this service type.',
+            },
           },
-        }, 400);
+          400,
+        );
       }
 
       // 5. Update the order
@@ -384,49 +415,64 @@ mitraOrderRoutes.post(
       if (error instanceof Error) {
         switch (error.message) {
           case 'ORDER_NOT_FOUND':
-            return c.json({
-              success: false,
-              error: {
-                code: 'NOT_FOUND',
-                message: 'Order not found or not owned by this Mitra.',
+            return c.json(
+              {
+                success: false,
+                error: {
+                  code: 'NOT_FOUND',
+                  message: 'Order not found or not owned by this Mitra.',
+                },
               },
-            }, 404);
+              404,
+            );
 
           case 'ORDER_NOT_ASSIGNABLE':
-            return c.json({
-              success: false,
-              error: {
-                code: 'CONFLICT',
-                message: 'Order is not in an assignable state.',
+            return c.json(
+              {
+                success: false,
+                error: {
+                  code: 'CONFLICT',
+                  message: 'Order is not in an assignable state.',
+                },
               },
-            }, 409);
+              409,
+            );
 
           case 'DRIVER_NOT_FOUND':
-            return c.json({
-              success: false,
-              error: {
-                code: 'NOT_FOUND',
-                message: 'Driver not found or not owned by this Mitra.',
+            return c.json(
+              {
+                success: false,
+                error: {
+                  code: 'NOT_FOUND',
+                  message: 'Driver not found or not owned by this Mitra.',
+                },
               },
-            }, 404);
+              404,
+            );
 
           case 'DRIVER_INACTIVE':
-            return c.json({
-              success: false,
-              error: {
-                code: 'BAD_REQUEST',
-                message: 'Driver is not active.',
+            return c.json(
+              {
+                success: false,
+                error: {
+                  code: 'BAD_REQUEST',
+                  message: 'Driver is not active.',
+                },
               },
-            }, 400);
+              400,
+            );
 
           case 'DRIVER_NOT_QUALIFIED':
-            return c.json({
-              success: false,
-              error: {
-                code: 'BAD_REQUEST',
-                message: 'Driver is not qualified for this service type.',
+            return c.json(
+              {
+                success: false,
+                error: {
+                  code: 'BAD_REQUEST',
+                  message: 'Driver is not qualified for this service type.',
+                },
               },
-            }, 400);
+              400,
+            );
 
           default:
             throw error;
@@ -435,7 +481,7 @@ mitraOrderRoutes.post(
 
       throw new Error('Failed to assign driver to order.');
     }
-  }
+  },
 );
 
-export default mitraOrderRoutes; 
+export default mitraOrderRoutes;

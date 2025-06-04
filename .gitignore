@@ -15,5 +15,12 @@ tsconfig.tsbuildinfo
 
 .cursor/rules
 
+# Test coverage and artifacts
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+playwright-report/
+
 # QA Reports (generated dynamically)
 postman/report.html

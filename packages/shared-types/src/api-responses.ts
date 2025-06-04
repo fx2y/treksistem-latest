@@ -29,21 +29,21 @@ export const API_ERROR_CODES = {
   CONFLICT: 'CONFLICT',
   FORBIDDEN: 'FORBIDDEN',
   INVALID_REQUEST: 'INVALID_REQUEST',
-  
+
   // Business logic errors
   COST_CALCULATION_ERROR: 'COST_CALCULATION_ERROR',
   TRUST_MECHANISM_ERROR: 'TRUST_MECHANISM_ERROR',
   SERVICE_CONFIG_ERROR: 'SERVICE_CONFIG_ERROR',
   ORDER_STATUS_ERROR: 'ORDER_STATUS_ERROR',
   DRIVER_ASSIGNMENT_ERROR: 'DRIVER_ASSIGNMENT_ERROR',
-  
+
   // Server errors (5xx)
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
   EXTERNAL_SERVICE_ERROR: 'EXTERNAL_SERVICE_ERROR',
 } as const;
 
-export type ApiErrorCode = typeof API_ERROR_CODES[keyof typeof API_ERROR_CODES];
+export type ApiErrorCode = (typeof API_ERROR_CODES)[keyof typeof API_ERROR_CODES];
 
 /**
  * Custom error class for API errors
@@ -53,7 +53,7 @@ export class ApiError extends Error {
     public _code: string,
     message: string,
     public _status: number,
-    public _details?: Record<string, unknown>
+    public _details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -129,4 +129,4 @@ export class ApiError extends Error {
   get details(): Record<string, unknown> | undefined {
     return this._details;
   }
-} 
+}

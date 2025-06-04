@@ -1,10 +1,10 @@
 /**
  * Order Cost Calculation Utilities
- * 
+ *
  * This module provides comprehensive cost calculation functionality for orders based on
  * service configuration. Implements pricing rules from RFC-TREK-CONFIG-001 and supports
  * multiple pricing models including distance-based, zone-based, and per-item pricing.
- * 
+ *
  * @see RFC-TREK-CONFIG-001 for service configuration structure
  * @see RFC-TREK-ORDER-001 for order placement requirements
  */
@@ -43,7 +43,7 @@ export class CostCalculationError extends Error {
   constructor(
     message: string,
     public _code?: string,
-    public _details?: any
+    public _details?: any,
   ) {
     super(message);
     this.name = 'CostCalculationError';
@@ -60,16 +60,16 @@ export class CostCalculationError extends Error {
 
 /**
  * Calculates estimated cost for an order based on service configuration
- * 
+ *
  * @param serviceConfig Service configuration with pricing rules
  * @param orderDetails Order details including addresses and selections
  * @returns Promise resolving to detailed cost breakdown
- * 
+ *
  * @throws CostCalculationError for business rule violations or missing data
  */
 export async function calculateOrderCost(
   serviceConfig: ServiceConfigBase,
-  orderDetails: OrderDetailsBase
+  orderDetails: OrderDetailsBase,
 ): Promise<CostBreakdown> {
   const breakdown: CostBreakdown = {
     adminFee: 0,
@@ -106,8 +106,13 @@ export async function calculateOrderCost(
   calculateFacilitiesFees(serviceConfig, orderDetails, breakdown);
 
   // 6. Calculate totals
-  breakdown.subtotal = breakdown.adminFee + breakdown.distanceCost + breakdown.zoneCost + 
-                      breakdown.perItemCost + breakdown.muatanHandlingFees + breakdown.facilitiesFees;
+  breakdown.subtotal =
+    breakdown.adminFee +
+    breakdown.distanceCost +
+    breakdown.zoneCost +
+    breakdown.perItemCost +
+    breakdown.muatanHandlingFees +
+    breakdown.facilitiesFees;
   breakdown.totalCost = breakdown.subtotal;
 
   return breakdown;
@@ -119,7 +124,7 @@ export async function calculateOrderCost(
 async function calculateLocationBasedCost(
   serviceConfig: ServiceConfigBase,
   orderDetails: OrderDetailsBase,
-  breakdown: CostBreakdown
+  breakdown: CostBreakdown,
 ): Promise<void> {
   const { pricing } = serviceConfig;
 
@@ -127,14 +132,14 @@ async function calculateLocationBasedCost(
     if (!pricing.biayaPerKm) {
       throw new CostCalculationError(
         'Per-km pricing enabled but biayaPerKm not configured',
-        'INVALID_PRICING_CONFIG'
+        'INVALID_PRICING_CONFIG',
       );
     }
 
     // Calculate distance using geo utility
     const distanceResult = await calculateOrderDistance(
       orderDetails.pickupAddress,
-      orderDetails.dropoffAddress
+      orderDetails.dropoffAddress,
     );
 
     if (!distanceResult) {
@@ -144,37 +149,38 @@ async function calculateLocationBasedCost(
         {
           pickupHasCoords: hasValidCoordinates(orderDetails.pickupAddress),
           dropoffHasCoords: hasValidCoordinates(orderDetails.dropoffAddress),
-        }
+        },
       );
     }
 
     breakdown.distanceCost = distanceResult.distanceKm * pricing.biayaPerKm;
     breakdown.metadata.calculationMethod = 'per_km';
     breakdown.metadata.distanceKm = distanceResult.distanceKm;
-    
+
     breakdown.breakdown.push({
       description: `Biaya Jarak (${distanceResult.distanceKm.toFixed(2)} km × Rp ${pricing.biayaPerKm.toLocaleString()})`,
       amount: breakdown.distanceCost,
     });
 
     // Check service coverage limits
-    if (serviceConfig.jangkauanLayanan.maxDistanceKm && 
-        distanceResult.distanceKm > serviceConfig.jangkauanLayanan.maxDistanceKm) {
+    if (
+      serviceConfig.jangkauanLayanan.maxDistanceKm &&
+      distanceResult.distanceKm > serviceConfig.jangkauanLayanan.maxDistanceKm
+    ) {
       throw new CostCalculationError(
         `Distance ${distanceResult.distanceKm.toFixed(2)} km exceeds service coverage limit of ${serviceConfig.jangkauanLayanan.maxDistanceKm} km`,
         'DISTANCE_EXCEEDS_COVERAGE',
         {
           calculatedDistance: distanceResult.distanceKm,
           maxDistance: serviceConfig.jangkauanLayanan.maxDistanceKm,
-        }
+        },
       );
     }
-
   } else if (pricing.modelHargaJarak === 'ZONA_ASAL_TUJUAN') {
     if (!pricing.zonaHarga || pricing.zonaHarga.length === 0) {
       throw new CostCalculationError(
         'Zone-based pricing enabled but zonaHarga not configured',
-        'INVALID_PRICING_CONFIG'
+        'INVALID_PRICING_CONFIG',
       );
     }
 
@@ -183,9 +189,10 @@ async function calculateLocationBasedCost(
     const pickupZone = extractZoneFromAddress(orderDetails.pickupAddress);
     const dropoffZone = extractZoneFromAddress(orderDetails.dropoffAddress);
 
-    const zonePrice = pricing.zonaHarga.find(zone => 
-      zone.asalZona.toLowerCase() === pickupZone.toLowerCase() &&
-      zone.tujuanZona.toLowerCase() === dropoffZone.toLowerCase()
+    const zonePrice = pricing.zonaHarga.find(
+      (zone) =>
+        zone.asalZona.toLowerCase() === pickupZone.toLowerCase() &&
+        zone.tujuanZona.toLowerCase() === dropoffZone.toLowerCase(),
     );
 
     if (!zonePrice) {
@@ -195,15 +202,15 @@ async function calculateLocationBasedCost(
         {
           pickupZone,
           dropoffZone,
-          availableZones: pricing.zonaHarga.map(z => `${z.asalZona} → ${z.tujuanZona}`),
-        }
+          availableZones: pricing.zonaHarga.map((z) => `${z.asalZona} → ${z.tujuanZona}`),
+        },
       );
     }
 
     breakdown.zoneCost = zonePrice.harga;
     breakdown.metadata.calculationMethod = 'zone_based';
     breakdown.metadata.appliedZone = `${pickupZone} → ${dropoffZone}`;
-    
+
     breakdown.breakdown.push({
       description: `Biaya Zona (${pickupZone} → ${dropoffZone})`,
       amount: breakdown.zoneCost,
@@ -217,18 +224,18 @@ async function calculateLocationBasedCost(
 function calculatePerItemCost(
   serviceConfig: ServiceConfigBase,
   orderDetails: OrderDetailsBase,
-  breakdown: CostBreakdown
+  breakdown: CostBreakdown,
 ): void {
   const { pricing } = serviceConfig;
 
   if (pricing.modelHargaMuatanPcs === 'PER_PCS' && pricing.biayaPerPcs) {
     // Extract item count from order details (this field might be dynamic based on service type)
     const itemCount = extractItemCount(orderDetails);
-    
+
     if (itemCount > 0) {
       breakdown.perItemCost = itemCount * pricing.biayaPerPcs;
       breakdown.metadata.itemCount = itemCount;
-      
+
       breakdown.breakdown.push({
         description: `Biaya Per Item (${itemCount} × Rp ${pricing.biayaPerPcs.toLocaleString()})`,
         amount: breakdown.perItemCost,
@@ -243,19 +250,19 @@ function calculatePerItemCost(
 function calculateMuatanHandlingFees(
   serviceConfig: ServiceConfigBase,
   orderDetails: OrderDetailsBase,
-  breakdown: CostBreakdown
+  breakdown: CostBreakdown,
 ): void {
   if (!orderDetails.selectedMuatanId || !serviceConfig.allowedMuatan) {
     return;
   }
 
   const selectedMuatan = serviceConfig.allowedMuatan.find(
-    muatan => muatan.muatanId === orderDetails.selectedMuatanId
+    (muatan) => muatan.muatanId === orderDetails.selectedMuatanId,
   );
 
   if (selectedMuatan && selectedMuatan.biayaHandlingTambahan) {
     breakdown.muatanHandlingFees = selectedMuatan.biayaHandlingTambahan;
-    
+
     breakdown.breakdown.push({
       description: `Biaya Handling ${selectedMuatan.namaTampil}`,
       amount: breakdown.muatanHandlingFees,
@@ -269,7 +276,7 @@ function calculateMuatanHandlingFees(
 function calculateFacilitiesFees(
   serviceConfig: ServiceConfigBase,
   orderDetails: OrderDetailsBase,
-  breakdown: CostBreakdown
+  breakdown: CostBreakdown,
 ): void {
   if (!orderDetails.selectedFasilitasIds || !serviceConfig.availableFasilitas) {
     return;
@@ -279,12 +286,12 @@ function calculateFacilitiesFees(
 
   for (const fasilitasId of orderDetails.selectedFasilitasIds) {
     const selectedFasilitas = serviceConfig.availableFasilitas.find(
-      fasilitas => fasilitas.fasilitasId === fasilitasId
+      (fasilitas) => fasilitas.fasilitasId === fasilitasId,
     );
 
     if (selectedFasilitas && selectedFasilitas.biayaFasilitasTambahan) {
       totalFacilitiesFees += selectedFasilitas.biayaFasilitasTambahan;
-      
+
       breakdown.breakdown.push({
         description: `Fasilitas ${selectedFasilitas.namaTampil}`,
         amount: selectedFasilitas.biayaFasilitasTambahan,
@@ -300,7 +307,7 @@ function calculateFacilitiesFees(
  */
 export function validateTalanganAmount(
   serviceConfig: ServiceConfigBase,
-  talanganAmount?: number
+  talanganAmount?: number,
 ): void {
   if (!talanganAmount || talanganAmount <= 0) {
     return; // No talangan requested
@@ -309,19 +316,21 @@ export function validateTalanganAmount(
   if (!serviceConfig.fiturTalangan.enabled) {
     throw new CostCalculationError(
       'Talangan feature is not enabled for this service',
-      'TALANGAN_NOT_ENABLED'
+      'TALANGAN_NOT_ENABLED',
     );
   }
 
-  if (serviceConfig.fiturTalangan.maxAmount && 
-      talanganAmount > serviceConfig.fiturTalangan.maxAmount) {
+  if (
+    serviceConfig.fiturTalangan.maxAmount &&
+    talanganAmount > serviceConfig.fiturTalangan.maxAmount
+  ) {
     throw new CostCalculationError(
       `Talangan amount Rp ${talanganAmount.toLocaleString()} exceeds maximum limit of Rp ${serviceConfig.fiturTalangan.maxAmount.toLocaleString()}`,
       'TALANGAN_EXCEEDS_LIMIT',
       {
         requestedAmount: talanganAmount,
         maxAmount: serviceConfig.fiturTalangan.maxAmount,
-      }
+      },
     );
   }
 }
@@ -331,7 +340,7 @@ export function validateTalanganAmount(
  */
 export function validateSelectedMuatan(
   serviceConfig: ServiceConfigBase,
-  selectedMuatanId?: string
+  selectedMuatanId?: string,
 ): void {
   if (!selectedMuatanId) {
     return; // No muatan selected
@@ -340,12 +349,12 @@ export function validateSelectedMuatan(
   if (!serviceConfig.allowedMuatan || serviceConfig.allowedMuatan.length === 0) {
     throw new CostCalculationError(
       'This service does not support muatan selection',
-      'MUATAN_NOT_SUPPORTED'
+      'MUATAN_NOT_SUPPORTED',
     );
   }
 
   const isValidMuatan = serviceConfig.allowedMuatan.some(
-    muatan => muatan.muatanId === selectedMuatanId
+    (muatan) => muatan.muatanId === selectedMuatanId,
   );
 
   if (!isValidMuatan) {
@@ -354,8 +363,8 @@ export function validateSelectedMuatan(
       'INVALID_MUATAN_SELECTION',
       {
         selectedMuatan: selectedMuatanId,
-        availableMuatan: serviceConfig.allowedMuatan.map(m => m.muatanId),
-      }
+        availableMuatan: serviceConfig.allowedMuatan.map((m) => m.muatanId),
+      },
     );
   }
 }
@@ -365,7 +374,7 @@ export function validateSelectedMuatan(
  */
 export function validateSelectedFasilitas(
   serviceConfig: ServiceConfigBase,
-  selectedFasilitasIds?: string[]
+  selectedFasilitasIds?: string[],
 ): void {
   if (!selectedFasilitasIds || selectedFasilitasIds.length === 0) {
     return; // No facilities selected
@@ -374,14 +383,12 @@ export function validateSelectedFasilitas(
   if (!serviceConfig.availableFasilitas || serviceConfig.availableFasilitas.length === 0) {
     throw new CostCalculationError(
       'This service does not support facility selection',
-      'FASILITAS_NOT_SUPPORTED'
+      'FASILITAS_NOT_SUPPORTED',
     );
   }
 
-  const availableFasilitasIds = serviceConfig.availableFasilitas.map(f => f.fasilitasId);
-  const invalidFasilitas = selectedFasilitasIds.filter(
-    id => !availableFasilitasIds.includes(id)
-  );
+  const availableFasilitasIds = serviceConfig.availableFasilitas.map((f) => f.fasilitasId);
+  const invalidFasilitas = selectedFasilitasIds.filter((id) => !availableFasilitasIds.includes(id));
 
   if (invalidFasilitas.length > 0) {
     throw new CostCalculationError(
@@ -391,7 +398,7 @@ export function validateSelectedFasilitas(
         invalidFasilitas,
         selectedFasilitas: selectedFasilitasIds,
         availableFasilitas: availableFasilitasIds,
-      }
+      },
     );
   }
 }
@@ -423,7 +430,7 @@ function hasValidCoordinates(address: AddressDetail): boolean {
 function extractZoneFromAddress(address: AddressDetail): string {
   // Simple keyword-based zone extraction for MVP
   const text = address.text.toLowerCase();
-  
+
   // Common Indonesian city/area patterns
   if (text.includes('malang kota') || text.includes('kota malang')) return 'MALANG_KOTA';
   if (text.includes('malang') && !text.includes('kota')) return 'KAB_MALANG';
@@ -431,9 +438,9 @@ function extractZoneFromAddress(address: AddressDetail): string {
   if (text.includes('jakarta')) return 'JAKARTA';
   if (text.includes('bandung')) return 'BANDUNG';
   if (text.includes('surabaya')) return 'SURABAYA';
-  
+
   // Default to the first significant word as zone
-  const words = text.split(/\s+/).filter(word => word.length > 3);
+  const words = text.split(/\s+/).filter((word) => word.length > 3);
   return words[0]?.toUpperCase() || 'UNKNOWN_ZONE';
 }
 
@@ -443,10 +450,6 @@ function extractZoneFromAddress(address: AddressDetail): string {
 function extractItemCount(orderDetails: OrderDetailsBase): number {
   // Check common field names that might contain item count
   const details = orderDetails as any;
-  
-  return details.quantity || 
-         details.itemCount || 
-         details.jumlahBarang || 
-         details.pieces || 
-         1; // Default to 1 item if not specified
-} 
+
+  return details.quantity || details.itemCount || details.jumlahBarang || details.pieces || 1; // Default to 1 item if not specified
+}

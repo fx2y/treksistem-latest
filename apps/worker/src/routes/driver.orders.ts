@@ -30,24 +30,32 @@ const addNoteSchema = z.object({
 
 // Schema for R2 upload URL request
 const requestUploadUrlSchema = z.object({
-  filename: z.string()
-    .regex(/\.(jpg|jpeg|png|webp)$/i, "Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.")
-    .max(100, "Filename too long."),
-  contentType: z.string()
-    .regex(/^image\/(jpeg|png|webp)$/, "Invalid content type. Only image/jpeg, image/png, and image/webp are allowed."),
+  filename: z
+    .string()
+    .regex(
+      /\.(jpg|jpeg|png|webp)$/i,
+      'Invalid file type. Only JPG, JPEG, PNG, and WEBP are allowed.',
+    )
+    .max(100, 'Filename too long.'),
+  contentType: z
+    .string()
+    .regex(
+      /^image\/(jpeg|png|webp)$/,
+      'Invalid content type. Only image/jpeg, image/png, and image/webp are allowed.',
+    ),
 });
 
 // Order status state machine - defines valid transitions
 const validStatusTransitions: Record<string, string[]> = {
-  'DRIVER_ASSIGNED': ['ACCEPTED_BY_DRIVER', 'REJECTED_BY_DRIVER', 'CANCELLED_BY_DRIVER'],
-  'ACCEPTED_BY_DRIVER': ['DRIVER_AT_PICKUP', 'CANCELLED_BY_DRIVER'],
-  'DRIVER_AT_PICKUP': ['PICKED_UP', 'CANCELLED_BY_DRIVER'],
-  'PICKED_UP': ['IN_TRANSIT', 'DRIVER_AT_DROPOFF', 'CANCELLED_BY_DRIVER'],
-  'IN_TRANSIT': ['DRIVER_AT_DROPOFF', 'CANCELLED_BY_DRIVER'],
-  'DRIVER_AT_DROPOFF': ['DELIVERED', 'FAILED_DELIVERY', 'CANCELLED_BY_DRIVER'],
-  'DELIVERED': [], // Terminal state
-  'CANCELLED_BY_DRIVER': [], // Terminal state
-  'FAILED_DELIVERY': ['DRIVER_AT_DROPOFF'], // Retry delivery
+  DRIVER_ASSIGNED: ['ACCEPTED_BY_DRIVER', 'REJECTED_BY_DRIVER', 'CANCELLED_BY_DRIVER'],
+  ACCEPTED_BY_DRIVER: ['DRIVER_AT_PICKUP', 'CANCELLED_BY_DRIVER'],
+  DRIVER_AT_PICKUP: ['PICKED_UP', 'CANCELLED_BY_DRIVER'],
+  PICKED_UP: ['IN_TRANSIT', 'DRIVER_AT_DROPOFF', 'CANCELLED_BY_DRIVER'],
+  IN_TRANSIT: ['DRIVER_AT_DROPOFF', 'CANCELLED_BY_DRIVER'],
+  DRIVER_AT_DROPOFF: ['DELIVERED', 'FAILED_DELIVERY', 'CANCELLED_BY_DRIVER'],
+  DELIVERED: [], // Terminal state
+  CANCELLED_BY_DRIVER: [], // Terminal state
+  FAILED_DELIVERY: ['DRIVER_AT_DROPOFF'], // Retry delivery
 };
 
 /**
@@ -59,13 +67,16 @@ driverOrderRoutes.use('*', async (c, next) => {
   const driverIdFromPath = c.req.param('driverId');
 
   if (!driverIdFromPath || !isCuid(driverIdFromPath)) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'INVALID_DRIVER_ID',
-        message: 'Driver ID is missing or invalid format.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_DRIVER_ID',
+          message: 'Driver ID is missing or invalid format.',
+        },
       },
-    }, 400);
+      400,
+    );
   }
 
   try {
@@ -80,23 +91,29 @@ driverOrderRoutes.use('*', async (c, next) => {
     });
 
     if (!driver) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'DRIVER_NOT_FOUND',
-          message: 'Driver not found.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'DRIVER_NOT_FOUND',
+            message: 'Driver not found.',
+          },
         },
-      }, 404);
+        404,
+      );
     }
 
     if (!driver.isActive) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'DRIVER_INACTIVE',
-          message: 'Driver account is inactive.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'DRIVER_INACTIVE',
+            message: 'Driver account is inactive.',
+          },
         },
-      }, 403);
+        403,
+      );
     }
 
     // Set driver context for downstream handlers
@@ -104,17 +121,21 @@ driverOrderRoutes.use('*', async (c, next) => {
     c.set('currentDriverMitraId', driver.mitraId);
     c.set('driverIsActive', driver.isActive);
 
-    console.log(`[Driver Auth] Driver ${driver.name} (${driver.id}) authenticated for Mitra ${driver.mitraId}`);
-
+    console.log(
+      `[Driver Auth] Driver ${driver.name} (${driver.id}) authenticated for Mitra ${driver.mitraId}`,
+    );
   } catch (dbError) {
     console.error('[Driver Auth] Database error:', dbError);
-    return c.json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to verify driver authentication.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to verify driver authentication.',
+        },
       },
-    }, 500);
+      500,
+    );
   }
 
   await next();
@@ -143,7 +164,7 @@ driverOrderRoutes.get('/assigned', async (c) => {
     const assignedOrders = await db.query.orders.findMany({
       where: and(
         eq(orders.driverId, currentDriverId),
-        inArray(orders.status, activeAssignmentStatuses)
+        inArray(orders.status, activeAssignmentStatuses),
       ),
       orderBy: [desc(orders.updatedAt)],
       with: {
@@ -166,7 +187,7 @@ driverOrderRoutes.get('/assigned', async (c) => {
     });
 
     // Transform orders to include parsed service config and structured data
-    const transformedOrders = assignedOrders.map(order => {
+    const transformedOrders = assignedOrders.map((order) => {
       // Parse service configuration for driver context
       let serviceConfig = null;
       try {
@@ -174,7 +195,10 @@ driverOrderRoutes.get('/assigned', async (c) => {
           serviceConfig = order.service.configJson;
         }
       } catch (parseError) {
-        console.warn(`[Driver Orders] Failed to parse service config for order ${order.id}:`, parseError);
+        console.warn(
+          `[Driver Orders] Failed to parse service config for order ${order.id}:`,
+          parseError,
+        );
       }
 
       // Parse order details
@@ -184,7 +208,10 @@ driverOrderRoutes.get('/assigned', async (c) => {
           orderDetails = order.detailsJson;
         }
       } catch (parseError) {
-        console.warn(`[Driver Orders] Failed to parse order details for order ${order.id}:`, parseError);
+        console.warn(
+          `[Driver Orders] Failed to parse order details for order ${order.id}:`,
+          parseError,
+        );
       }
 
       return {
@@ -212,7 +239,9 @@ driverOrderRoutes.get('/assigned', async (c) => {
       };
     });
 
-    console.log(`[Driver Orders] Found ${transformedOrders.length} active orders for driver ${currentDriverId}`);
+    console.log(
+      `[Driver Orders] Found ${transformedOrders.length} active orders for driver ${currentDriverId}`,
+    );
 
     return c.json({
       success: true,
@@ -222,16 +251,18 @@ driverOrderRoutes.get('/assigned', async (c) => {
         driverId: currentDriverId,
       },
     });
-
   } catch (error) {
     console.error('[Driver Orders] Database error fetching assigned orders:', error);
-    return c.json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to fetch assigned orders.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch assigned orders.',
+        },
       },
-    }, 500);
+      500,
+    );
   }
 });
 
@@ -245,23 +276,23 @@ driverOrderRoutes.post('/:orderId/accept', async (c) => {
   const orderId = c.req.param('orderId');
 
   if (!orderId || !isCuid(orderId)) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'INVALID_ORDER_ID',
-        message: 'Order ID is missing or invalid format.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_ORDER_ID',
+          message: 'Order ID is missing or invalid format.',
+        },
       },
-    }, 400);
+      400,
+    );
   }
 
   try {
     const result = await db.transaction(async (tx) => {
       // Fetch the order and verify it's assigned to this driver
       const order = await tx.query.orders.findFirst({
-        where: and(
-          eq(orders.id, orderId),
-          eq(orders.driverId, currentDriverId)
-        ),
+        where: and(eq(orders.id, orderId), eq(orders.driverId, currentDriverId)),
       });
 
       if (!order) {
@@ -274,7 +305,8 @@ driverOrderRoutes.post('/:orderId/accept', async (c) => {
       }
 
       // Update order status
-      const [updatedOrder] = await tx.update(orders)
+      const [updatedOrder] = await tx
+        .update(orders)
         .set({
           status: 'ACCEPTED_BY_DRIVER',
           updatedAt: new Date(),
@@ -306,40 +338,48 @@ driverOrderRoutes.post('/:orderId/accept', async (c) => {
       success: true,
       data: result,
     });
-
   } catch (error) {
     console.error('[Driver Orders] Error accepting order:', error);
 
     if (error instanceof Error) {
       if (error.message === 'ORDER_NOT_FOUND_OR_NOT_ASSIGNED') {
-        return c.json({
-          success: false,
-          error: {
-            code: 'ORDER_NOT_FOUND',
-            message: 'Order not found or not assigned to this driver.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'ORDER_NOT_FOUND',
+              message: 'Order not found or not assigned to this driver.',
+            },
           },
-        }, 404);
+          404,
+        );
       }
 
       if (error.message.startsWith('INVALID_STATUS_FOR_ACCEPTANCE:')) {
         const currentStatus = error.message.split(':')[1];
-        return c.json({
-          success: false,
-          error: {
-            code: 'INVALID_STATUS_TRANSITION',
-            message: `Order cannot be accepted at current status: ${currentStatus}`,
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'INVALID_STATUS_TRANSITION',
+              message: `Order cannot be accepted at current status: ${currentStatus}`,
+            },
           },
-        }, 409);
+          409,
+        );
       }
     }
 
-    return c.json({
-      success: false,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Failed to accept order.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to accept order.',
+        },
       },
-    }, 500);
+      500,
+    );
   }
 });
 
@@ -347,118 +387,127 @@ driverOrderRoutes.post('/:orderId/accept', async (c) => {
  * POST /:orderId/reject
  * Driver rejects an assigned order
  */
-driverOrderRoutes.post('/:orderId/reject', 
-  zValidator('json', rejectOrderSchema),
-  async (c) => {
-    const currentDriverId = c.get('currentDriverId') as string;
-    const db = c.get('db');
-    const orderId = c.req.param('orderId');
-    const { reason } = c.req.valid('json');
+driverOrderRoutes.post('/:orderId/reject', zValidator('json', rejectOrderSchema), async (c) => {
+  const currentDriverId = c.get('currentDriverId') as string;
+  const db = c.get('db');
+  const orderId = c.req.param('orderId');
+  const { reason } = c.req.valid('json');
 
-    if (!orderId || !isCuid(orderId)) {
-      return c.json({
+  if (!orderId || !isCuid(orderId)) {
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INVALID_ORDER_ID',
           message: 'Order ID is missing or invalid format.',
         },
-      }, 400);
-    }
+      },
+      400,
+    );
+  }
 
-    try {
-      await db.transaction(async (tx) => {
-        // Fetch the order and verify it's assigned to this driver
-        const order = await tx.query.orders.findFirst({
-          where: and(
-            eq(orders.id, orderId),
-            eq(orders.driverId, currentDriverId)
-          ),
-        });
-
-        if (!order) {
-          throw new Error('ORDER_NOT_FOUND_OR_NOT_ASSIGNED');
-        }
-
-        // Verify order status allows rejection
-        if (order.status !== 'DRIVER_ASSIGNED') {
-          throw new Error(`INVALID_STATUS_FOR_REJECTION:${order.status}`);
-        }
-
-        // Update order status and unassign driver
-        await tx.update(orders)
-          .set({
-            status: 'REJECTED_BY_DRIVER',
-            driverId: null,
-            updatedAt: new Date(),
-          })
-          .where(eq(orders.id, orderId));
-
-        // Create audit trail event
-        await tx.insert(orderEvents).values({
-          id: createId(),
-          orderId: orderId,
-          timestamp: new Date(Date.now()),
-          eventType: 'STATUS_UPDATE',
-          dataJson: {
-            eventType: 'STATUS_UPDATE' as const,
-            oldStatus: order.status as any,
-            newStatus: 'REJECTED_BY_DRIVER' as any,
-            reason: reason || 'No reason provided',
-          },
-          actorType: 'DRIVER',
-          actorId: currentDriverId,
-        });
+  try {
+    await db.transaction(async (tx) => {
+      // Fetch the order and verify it's assigned to this driver
+      const order = await tx.query.orders.findFirst({
+        where: and(eq(orders.id, orderId), eq(orders.driverId, currentDriverId)),
       });
 
-      console.log(`[Driver Orders] Driver ${currentDriverId} rejected order ${orderId}: ${reason || 'No reason'}`);
+      if (!order) {
+        throw new Error('ORDER_NOT_FOUND_OR_NOT_ASSIGNED');
+      }
 
-      return c.json({
-        success: true,
-        message: 'Order rejected successfully.',
+      // Verify order status allows rejection
+      if (order.status !== 'DRIVER_ASSIGNED') {
+        throw new Error(`INVALID_STATUS_FOR_REJECTION:${order.status}`);
+      }
+
+      // Update order status and unassign driver
+      await tx
+        .update(orders)
+        .set({
+          status: 'REJECTED_BY_DRIVER',
+          driverId: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(orders.id, orderId));
+
+      // Create audit trail event
+      await tx.insert(orderEvents).values({
+        id: createId(),
+        orderId: orderId,
+        timestamp: new Date(Date.now()),
+        eventType: 'STATUS_UPDATE',
+        dataJson: {
+          eventType: 'STATUS_UPDATE' as const,
+          oldStatus: order.status as any,
+          newStatus: 'REJECTED_BY_DRIVER' as any,
+          reason: reason || 'No reason provided',
+        },
+        actorType: 'DRIVER',
+        actorId: currentDriverId,
       });
+    });
 
-    } catch (error) {
-      console.error('[Driver Orders] Error rejecting order:', error);
+    console.log(
+      `[Driver Orders] Driver ${currentDriverId} rejected order ${orderId}: ${reason || 'No reason'}`,
+    );
 
-      if (error instanceof Error) {
-        if (error.message === 'ORDER_NOT_FOUND_OR_NOT_ASSIGNED') {
-          return c.json({
+    return c.json({
+      success: true,
+      message: 'Order rejected successfully.',
+    });
+  } catch (error) {
+    console.error('[Driver Orders] Error rejecting order:', error);
+
+    if (error instanceof Error) {
+      if (error.message === 'ORDER_NOT_FOUND_OR_NOT_ASSIGNED') {
+        return c.json(
+          {
             success: false,
             error: {
               code: 'ORDER_NOT_FOUND',
               message: 'Order not found or not assigned to this driver.',
             },
-          }, 404);
-        }
+          },
+          404,
+        );
+      }
 
-        if (error.message.startsWith('INVALID_STATUS_FOR_REJECTION:')) {
-          const currentStatus = error.message.split(':')[1];
-          return c.json({
+      if (error.message.startsWith('INVALID_STATUS_FOR_REJECTION:')) {
+        const currentStatus = error.message.split(':')[1];
+        return c.json(
+          {
             success: false,
             error: {
               code: 'INVALID_STATUS_TRANSITION',
               message: `Order cannot be rejected at current status: ${currentStatus}`,
             },
-          }, 409);
-        }
+          },
+          409,
+        );
       }
+    }
 
-      return c.json({
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to reject order.',
         },
-      }, 500);
-    }
+      },
+      500,
+    );
   }
-);
+});
 
 /**
  * POST /:orderId/update-status
  * Driver updates order status with optional notes, photo proof, and location
  */
-driverOrderRoutes.post('/:orderId/update-status',
+driverOrderRoutes.post(
+  '/:orderId/update-status',
   zValidator('json', updateStatusSchema),
   async (c) => {
     const currentDriverId = c.get('currentDriverId') as string;
@@ -467,23 +516,23 @@ driverOrderRoutes.post('/:orderId/update-status',
     const { newStatus, notes, photoR2Key, lat, lon } = c.req.valid('json');
 
     if (!orderId || !isCuid(orderId)) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'INVALID_ORDER_ID',
-          message: 'Order ID is missing or invalid format.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_ORDER_ID',
+            message: 'Order ID is missing or invalid format.',
+          },
         },
-      }, 400);
+        400,
+      );
     }
 
     try {
       const result = await db.transaction(async (tx) => {
         // Fetch the order and verify it's assigned to this driver
         const order = await tx.query.orders.findFirst({
-          where: and(
-            eq(orders.id, orderId),
-            eq(orders.driverId, currentDriverId)
-          ),
+          where: and(eq(orders.id, orderId), eq(orders.driverId, currentDriverId)),
         });
 
         if (!order) {
@@ -508,7 +557,8 @@ driverOrderRoutes.post('/:orderId/update-status',
         }
 
         // Update order
-        const [updatedOrder] = await tx.update(orders)
+        const [updatedOrder] = await tx
+          .update(orders)
           .set(updateData)
           .where(eq(orders.id, orderId))
           .returning();
@@ -547,8 +597,12 @@ driverOrderRoutes.post('/:orderId/update-status',
             dataJson: {
               eventType: 'PHOTO_UPLOADED' as const,
               photoR2Key: photoR2Key,
-              photoType: newStatus === 'DELIVERED' ? 'DELIVERY_PROOF' as const : 
-                        newStatus === 'PICKED_UP' ? 'PICKUP_PROOF' as const : 'CONDITION_PROOF' as const,
+              photoType:
+                newStatus === 'DELIVERED'
+                  ? ('DELIVERY_PROOF' as const)
+                  : newStatus === 'PICKED_UP'
+                    ? ('PICKUP_PROOF' as const)
+                    : ('CONDITION_PROOF' as const),
               caption: notes,
             },
             actorType: 'DRIVER',
@@ -576,141 +630,156 @@ driverOrderRoutes.post('/:orderId/update-status',
         return updatedOrder;
       });
 
-      console.log(`[Driver Orders] Driver ${currentDriverId} updated order ${orderId} status to ${newStatus}`);
+      console.log(
+        `[Driver Orders] Driver ${currentDriverId} updated order ${orderId} status to ${newStatus}`,
+      );
 
       return c.json({
         success: true,
         data: result,
       });
-
     } catch (error) {
       console.error('[Driver Orders] Error updating order status:', error);
 
       if (error instanceof Error) {
         if (error.message === 'ORDER_NOT_FOUND_OR_NOT_ASSIGNED') {
-          return c.json({
-            success: false,
-            error: {
-              code: 'ORDER_NOT_FOUND',
-              message: 'Order not found or not assigned to this driver.',
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'ORDER_NOT_FOUND',
+                message: 'Order not found or not assigned to this driver.',
+              },
             },
-          }, 404);
+            404,
+          );
         }
 
         if (error.message.startsWith('INVALID_STATUS_TRANSITION:')) {
           const [, currentStatus, attemptedStatus] = error.message.split(':');
-          return c.json({
-            success: false,
-            error: {
-              code: 'INVALID_STATUS_TRANSITION',
-              message: `Invalid status transition from ${currentStatus} to ${attemptedStatus}`,
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'INVALID_STATUS_TRANSITION',
+                message: `Invalid status transition from ${currentStatus} to ${attemptedStatus}`,
+              },
             },
-          }, 409);
+            409,
+          );
         }
       }
 
-      return c.json({
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to update order status.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to update order status.',
+          },
         },
-      }, 500);
+        500,
+      );
     }
-  }
+  },
 );
 
 /**
  * POST /:orderId/add-note
  * Driver adds a note to the order
  */
-driverOrderRoutes.post('/:orderId/add-note',
-  zValidator('json', addNoteSchema),
-  async (c) => {
-    const currentDriverId = c.get('currentDriverId') as string;
-    const db = c.get('db');
-    const orderId = c.req.param('orderId');
-    const { note } = c.req.valid('json');
+driverOrderRoutes.post('/:orderId/add-note', zValidator('json', addNoteSchema), async (c) => {
+  const currentDriverId = c.get('currentDriverId') as string;
+  const db = c.get('db');
+  const orderId = c.req.param('orderId');
+  const { note } = c.req.valid('json');
 
-    if (!orderId || !isCuid(orderId)) {
-      return c.json({
+  if (!orderId || !isCuid(orderId)) {
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INVALID_ORDER_ID',
           message: 'Order ID is missing or invalid format.',
         },
-      }, 400);
-    }
+      },
+      400,
+    );
+  }
 
-    try {
-      await db.transaction(async (tx) => {
-        // Verify the order exists and is assigned to this driver
-        const order = await tx.query.orders.findFirst({
-          where: and(
-            eq(orders.id, orderId),
-            eq(orders.driverId, currentDriverId)
-          ),
-        });
-
-        if (!order) {
-          throw new Error('ORDER_NOT_FOUND_OR_NOT_ASSIGNED');
-        }
-
-        // Create note event
-        await tx.insert(orderEvents).values({
-          id: createId(),
-          orderId: orderId,
-          timestamp: new Date(Date.now()),
-          eventType: 'NOTE_ADDED',
-          dataJson: {
-            eventType: 'NOTE_ADDED' as const,
-            note: note,
-            author: 'DRIVER' as const,
-          },
-          actorType: 'DRIVER',
-          actorId: currentDriverId,
-        });
+  try {
+    await db.transaction(async (tx) => {
+      // Verify the order exists and is assigned to this driver
+      const order = await tx.query.orders.findFirst({
+        where: and(eq(orders.id, orderId), eq(orders.driverId, currentDriverId)),
       });
 
-      console.log(`[Driver Orders] Driver ${currentDriverId} added note to order ${orderId}: ${note.substring(0, 50)}...`);
+      if (!order) {
+        throw new Error('ORDER_NOT_FOUND_OR_NOT_ASSIGNED');
+      }
 
-      return c.json({
-        success: true,
-        message: 'Note added successfully.',
+      // Create note event
+      await tx.insert(orderEvents).values({
+        id: createId(),
+        orderId: orderId,
+        timestamp: new Date(Date.now()),
+        eventType: 'NOTE_ADDED',
+        dataJson: {
+          eventType: 'NOTE_ADDED' as const,
+          note: note,
+          author: 'DRIVER' as const,
+        },
+        actorType: 'DRIVER',
+        actorId: currentDriverId,
       });
+    });
 
-    } catch (error) {
-      console.error('[Driver Orders] Error adding note:', error);
+    console.log(
+      `[Driver Orders] Driver ${currentDriverId} added note to order ${orderId}: ${note.substring(0, 50)}...`,
+    );
 
-      if (error instanceof Error) {
-        if (error.message === 'ORDER_NOT_FOUND_OR_NOT_ASSIGNED') {
-          return c.json({
+    return c.json({
+      success: true,
+      message: 'Note added successfully.',
+    });
+  } catch (error) {
+    console.error('[Driver Orders] Error adding note:', error);
+
+    if (error instanceof Error) {
+      if (error.message === 'ORDER_NOT_FOUND_OR_NOT_ASSIGNED') {
+        return c.json(
+          {
             success: false,
             error: {
               code: 'ORDER_NOT_FOUND',
               message: 'Order not found or not assigned to this driver.',
             },
-          }, 404);
-        }
+          },
+          404,
+        );
       }
+    }
 
-      return c.json({
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to add note.',
         },
-      }, 500);
-    }
+      },
+      500,
+    );
   }
-);
+});
 
 /**
  * POST /:orderId/request-upload-url
  * Generate a temporary upload token that can be used with the upload endpoint
  * Driver can only request upload tokens for orders assigned to them
  */
-driverOrderRoutes.post('/:orderId/request-upload-url',
+driverOrderRoutes.post(
+  '/:orderId/request-upload-url',
   zValidator('json', requestUploadUrlSchema),
   async (c) => {
     const currentDriverId = c.get('currentDriverId') as string;
@@ -720,22 +789,22 @@ driverOrderRoutes.post('/:orderId/request-upload-url',
     const { filename, contentType } = c.req.valid('json');
 
     if (!orderId || !isCuid(orderId)) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'INVALID_ORDER_ID',
-          message: 'Order ID is missing or invalid format.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INVALID_ORDER_ID',
+            message: 'Order ID is missing or invalid format.',
+          },
         },
-      }, 400);
+        400,
+      );
     }
 
     try {
       // Verify the order exists and is assigned to this driver
       const order = await db.query.orders.findFirst({
-        where: and(
-          eq(orders.id, orderId),
-          eq(orders.driverId, currentDriverId)
-        ),
+        where: and(eq(orders.id, orderId), eq(orders.driverId, currentDriverId)),
         columns: {
           id: true,
           status: true,
@@ -744,13 +813,16 @@ driverOrderRoutes.post('/:orderId/request-upload-url',
       });
 
       if (!order) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'ORDER_NOT_FOUND',
-            message: 'Order not found or not assigned to this driver.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'ORDER_NOT_FOUND',
+              message: 'Order not found or not assigned to this driver.',
+            },
           },
-        }, 404);
+          404,
+        );
       }
 
       // Construct unique R2 object key with structured path
@@ -758,7 +830,9 @@ driverOrderRoutes.post('/:orderId/request-upload-url',
       const uniqueId = createId();
       const r2ObjectKey = `proofs/${currentDriverMitraId}/${orderId}/${uniqueId}-${filename}`;
 
-      console.log(`[Driver Upload] Generating upload token for driver ${currentDriverId}, order ${orderId}, key: ${r2ObjectKey}`);
+      console.log(
+        `[Driver Upload] Generating upload token for driver ${currentDriverId}, order ${orderId}, key: ${r2ObjectKey}`,
+      );
 
       // Instead of pre-signed URL, return upload endpoint and token
       const uploadToken = createId(); // Temporary token for this upload
@@ -775,7 +849,9 @@ driverOrderRoutes.post('/:orderId/request-upload-url',
         expiresAt: Date.now() + 5 * 60 * 1000, // 5 minutes
       };
 
-      console.log(`[Driver Upload] Upload token generated successfully for driver ${currentDriverId}, order ${orderId}`);
+      console.log(
+        `[Driver Upload] Upload token generated successfully for driver ${currentDriverId}, order ${orderId}`,
+      );
 
       return c.json({
         success: true,
@@ -786,152 +862,170 @@ driverOrderRoutes.post('/:orderId/request-upload-url',
           expiresAt: uploadContext.expiresAt,
         },
       });
-
     } catch (error) {
       console.error('[Driver Upload] Error generating upload token:', error);
 
-      return c.json({
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Failed to generate upload token.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'Failed to generate upload token.',
+          },
         },
-      }, 500);
+        500,
+      );
     }
-  }
+  },
 );
 
 /**
  * POST /:orderId/upload/:uploadToken
  * Handle the actual file upload using the upload token
  */
-driverOrderRoutes.post('/:orderId/upload/:uploadToken',
-  async (c) => {
-    const currentDriverId = c.get('currentDriverId') as string;
-    const currentDriverMitraId = c.get('currentDriverMitraId') as string;
-    const orderId = c.req.param('orderId');
-    const uploadToken = c.req.param('uploadToken');
+driverOrderRoutes.post('/:orderId/upload/:uploadToken', async (c) => {
+  const currentDriverId = c.get('currentDriverId') as string;
+  const currentDriverMitraId = c.get('currentDriverMitraId') as string;
+  const orderId = c.req.param('orderId');
+  const uploadToken = c.req.param('uploadToken');
 
-    if (!orderId || !isCuid(orderId)) {
-      return c.json({
+  if (!orderId || !isCuid(orderId)) {
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INVALID_ORDER_ID',
           message: 'Order ID is missing or invalid format.',
         },
-      }, 400);
-    }
+      },
+      400,
+    );
+  }
 
-    if (!uploadToken || !isCuid(uploadToken)) {
-      return c.json({
+  if (!uploadToken || !isCuid(uploadToken)) {
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INVALID_UPLOAD_TOKEN',
           message: 'Upload token is missing or invalid format.',
         },
-      }, 400);
-    }
+      },
+      400,
+    );
+  }
 
-    try {
-      // Verify the order exists and is assigned to this driver
-      const db = c.get('db');
-      const order = await db.query.orders.findFirst({
-        where: and(
-          eq(orders.id, orderId),
-          eq(orders.driverId, currentDriverId)
-        ),
-        columns: {
-          id: true,
-          status: true,
-          driverId: true,
-        },
-      });
+  try {
+    // Verify the order exists and is assigned to this driver
+    const db = c.get('db');
+    const order = await db.query.orders.findFirst({
+      where: and(eq(orders.id, orderId), eq(orders.driverId, currentDriverId)),
+      columns: {
+        id: true,
+        status: true,
+        driverId: true,
+      },
+    });
 
-      if (!order) {
-        return c.json({
+    if (!order) {
+      return c.json(
+        {
           success: false,
           error: {
             code: 'ORDER_NOT_FOUND',
             message: 'Order not found or not assigned to this driver.',
           },
-        }, 404);
-      }
+        },
+        404,
+      );
+    }
 
-      // Get the uploaded file from request body
-      const contentType = c.req.header('content-type') || 'application/octet-stream';
-      
-      if (!contentType.startsWith('image/')) {
-        return c.json({
+    // Get the uploaded file from request body
+    const contentType = c.req.header('content-type') || 'application/octet-stream';
+
+    if (!contentType.startsWith('image/')) {
+      return c.json(
+        {
           success: false,
           error: {
             code: 'INVALID_FILE_TYPE',
             message: 'Only image files are allowed.',
           },
-        }, 400);
-      }
+        },
+        400,
+      );
+    }
 
-      // For simplicity, we'll reconstruct the object key
-      // In production, you'd store the upload context in KV or similar
-      const r2ObjectKey = `proofs/${currentDriverMitraId}/${orderId}/${uploadToken}-upload.jpg`;
+    // For simplicity, we'll reconstruct the object key
+    // In production, you'd store the upload context in KV or similar
+    const r2ObjectKey = `proofs/${currentDriverMitraId}/${orderId}/${uploadToken}-upload.jpg`;
 
-      console.log(`[Driver Upload] Uploading file for driver ${currentDriverId}, order ${orderId}, key: ${r2ObjectKey}`);
+    console.log(
+      `[Driver Upload] Uploading file for driver ${currentDriverId}, order ${orderId}, key: ${r2ObjectKey}`,
+    );
 
-      // Get the request body as ReadableStream for R2 upload
-      const requestBody = c.req.raw.body;
-      
-      if (!requestBody) {
-        return c.json({
+    // Get the request body as ReadableStream for R2 upload
+    const requestBody = c.req.raw.body;
+
+    if (!requestBody) {
+      return c.json(
+        {
           success: false,
           error: {
             code: 'NO_FILE_PROVIDED',
             message: 'No file provided in request body.',
           },
-        }, 400);
-      }
-
-      // Upload to R2
-      const uploadedObject = await c.env.TREKSISTEM_R2.put(r2ObjectKey, requestBody, {
-        httpMetadata: {
-          contentType: contentType,
         },
-        customMetadata: {
-          orderId: orderId,
-          driverId: currentDriverId,
-          mitraId: currentDriverMitraId,
-          uploadedAt: new Date().toISOString(),
-          uploadToken: uploadToken,
-        },
-      });
+        400,
+      );
+    }
 
-      if (!uploadedObject) {
-        throw new Error('Failed to upload file to R2');
-      }
+    // Upload to R2
+    const uploadedObject = await c.env.TREKSISTEM_R2.put(r2ObjectKey, requestBody, {
+      httpMetadata: {
+        contentType: contentType,
+      },
+      customMetadata: {
+        orderId: orderId,
+        driverId: currentDriverId,
+        mitraId: currentDriverMitraId,
+        uploadedAt: new Date().toISOString(),
+        uploadToken: uploadToken,
+      },
+    });
 
-      console.log(`[Driver Upload] File uploaded successfully: ${r2ObjectKey}, etag: ${uploadedObject.etag}`);
+    if (!uploadedObject) {
+      throw new Error('Failed to upload file to R2');
+    }
 
-      return c.json({
-        success: true,
-        data: {
-          r2ObjectKey: r2ObjectKey,
-          etag: uploadedObject.etag,
-          size: uploadedObject.size,
-          uploaded: uploadedObject.uploaded,
-          message: 'File uploaded successfully. Use the r2ObjectKey in your status update.',
-        },
-      });
+    console.log(
+      `[Driver Upload] File uploaded successfully: ${r2ObjectKey}, etag: ${uploadedObject.etag}`,
+    );
 
-    } catch (error) {
-      console.error('[Driver Upload] Error uploading file:', error);
+    return c.json({
+      success: true,
+      data: {
+        r2ObjectKey: r2ObjectKey,
+        etag: uploadedObject.etag,
+        size: uploadedObject.size,
+        uploaded: uploadedObject.uploaded,
+        message: 'File uploaded successfully. Use the r2ObjectKey in your status update.',
+      },
+    });
+  } catch (error) {
+    console.error('[Driver Upload] Error uploading file:', error);
 
-      return c.json({
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
           message: 'Failed to upload file.',
         },
-      }, 500);
-    }
+      },
+      500,
+    );
   }
-);
+});
 
-export default driverOrderRoutes; 
+export default driverOrderRoutes;

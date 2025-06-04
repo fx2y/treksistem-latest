@@ -1,12 +1,12 @@
 /**
  * Trust Mechanisms Utilities
- * 
+ *
  * This module implements trust mechanisms for sensitive orders involving talangan
  * (advance purchase by driver) or orders marked as "Barang Penting" (valuable items).
- * 
+ *
  * Based on RFC-TREK-TRUST-001, these mechanisms focus on user verification and
  * receiver notification to mitigate risks in peer-to-peer delivery scenarios.
- * 
+ *
  * @see RFC-TREK-TRUST-001 for trust mechanism requirements
  * @see RFC-TREK-ORDER-001 for order placement integration
  */
@@ -36,7 +36,7 @@ export class TrustMechanismError extends Error {
   constructor(
     message: string,
     public _code?: string,
-    public _details?: any
+    public _details?: any,
   ) {
     super(message);
     this.name = 'TrustMechanismError';
@@ -53,18 +53,18 @@ export class TrustMechanismError extends Error {
 
 /**
  * Evaluates trust requirements for an order and generates necessary mechanisms
- * 
+ *
  * @param serviceConfig Service configuration with trust settings
  * @param orderPayload Order placement payload
  * @param orderId Generated order ID for tracking
  * @returns Trust mechanism evaluation result
- * 
+ *
  * @throws TrustMechanismError if required trust conditions are not met
  */
 export function evaluateOrderTrustMechanisms(
   serviceConfig: ServiceConfigBase,
   orderPayload: OrderPlacementPayload,
-  orderId: string
+  orderId: string,
 ): TrustMechanismResult {
   const result: TrustMechanismResult = {
     requiresReceiverNotification: false,
@@ -101,7 +101,7 @@ export function evaluateOrderTrustMechanisms(
           hasTalangan,
           isBarangPenting: isServiceDefaultBarangPenting || isOrderMarkedBarangPenting,
           talanganAmount: orderPayload.talanganAmount,
-        }
+        },
       );
     }
 
@@ -109,23 +109,23 @@ export function evaluateOrderTrustMechanisms(
     result.receiverNotificationLink = generateReceiverNotificationLink(
       orderPayload,
       orderId,
-      serviceConfig.serviceTypeAlias
+      serviceConfig.serviceTypeAlias,
     );
 
     // Add verification requirements
     result.verificationRequirements.push(
-      'Orderer must notify receiver using the provided WhatsApp link'
+      'Orderer must notify receiver using the provided WhatsApp link',
     );
 
     if (hasTalangan) {
       result.verificationRequirements.push(
-        'Driver will collect advance payment (talangan) on behalf of orderer'
+        'Driver will collect advance payment (talangan) on behalf of orderer',
       );
     }
 
     if (isServiceDefaultBarangPenting || isOrderMarkedBarangPenting) {
       result.verificationRequirements.push(
-        'Extra care required for valuable items during transport'
+        'Extra care required for valuable items during transport',
       );
     }
   }
@@ -135,10 +135,10 @@ export function evaluateOrderTrustMechanisms(
 
 /**
  * Generates WhatsApp deep link for receiver notification
- * 
+ *
  * The link allows the orderer to quickly send a structured message to the receiver
  * informing them about the incoming delivery and providing tracking information.
- * 
+ *
  * @param orderPayload Order placement payload
  * @param orderId Generated order ID
  * @param serviceName Name of the service being used
@@ -147,21 +147,21 @@ export function evaluateOrderTrustMechanisms(
 export function generateReceiverNotificationLink(
   orderPayload: OrderPlacementPayload,
   orderId: string,
-  serviceName: string
+  serviceName: string,
 ): string {
   if (!orderPayload.receiverWaNumber) {
     throw new TrustMechanismError(
       'Cannot generate receiver notification link without receiver WhatsApp number',
-      'MISSING_RECEIVER_WA'
+      'MISSING_RECEIVER_WA',
     );
   }
 
   // Clean phone number (remove + prefix for WhatsApp API)
   const cleanPhoneNumber = orderPayload.receiverWaNumber.replace(/^\+/, '');
-  
+
   // Generate tracking URL (this should match the actual frontend URL structure)
   const trackingUrl = `https://treksistem.com/track/${orderId}`;
-  
+
   // Determine order type description
   let orderTypeDescription = serviceName;
   if (orderPayload.talanganAmount && orderPayload.talanganAmount > 0) {
@@ -203,31 +203,30 @@ export function generateReceiverNotificationLink(
 
 /**
  * Validates that an orderer identifier meets basic format requirements
- * 
+ *
  * This provides basic validation for orderer identification, typically phone numbers.
  * More sophisticated verification would require external APIs.
- * 
+ *
  * @param ordererIdentifier Orderer identifier to validate
  */
 export function validateOrdererIdentifier(ordererIdentifier: string): void {
   if (!ordererIdentifier || ordererIdentifier.trim().length === 0) {
-    throw new TrustMechanismError(
-      'Orderer identifier is required',
-      'MISSING_ORDERER_IDENTIFIER'
-    );
+    throw new TrustMechanismError('Orderer identifier is required', 'MISSING_ORDERER_IDENTIFIER');
   }
 
   // Basic phone number format validation (Indonesian format)
   const phoneRegex = /^\+?62[0-9]{8,13}$/;
   if (!phoneRegex.test(ordererIdentifier.replace(/\s|-/g, ''))) {
     // For MVP, log warning but don't block non-phone identifiers
-    console.warn(`[Trust] Orderer identifier '${ordererIdentifier}' does not match expected phone format`);
+    console.warn(
+      `[Trust] Orderer identifier '${ordererIdentifier}' does not match expected phone format`,
+    );
   }
 }
 
 /**
  * Generates trust-related event data for order events
- * 
+ *
  * @param trustResult Trust mechanism evaluation result
  * @returns Event data object for logging trust-related actions
  */
@@ -243,24 +242,24 @@ export function generateTrustEventData(trustResult: TrustMechanismResult): Recor
 
 /**
  * Checks if an order requires enhanced verification based on service config and order details
- * 
+ *
  * @param serviceConfig Service configuration
  * @param orderPayload Order payload
  * @returns Whether enhanced verification is required
  */
 export function requiresEnhancedVerification(
   serviceConfig: ServiceConfigBase,
-  orderPayload: OrderPlacementPayload
+  orderPayload: OrderPlacementPayload,
 ): boolean {
   const hasTalangan = orderPayload.talanganAmount && orderPayload.talanganAmount > 0;
   const isBarangPenting = serviceConfig.isBarangPentingDefault || orderPayload.isBarangPenting;
-  
+
   return hasTalangan || isBarangPenting;
 }
 
 /**
  * Formats trust mechanism summary for API responses
- * 
+ *
  * @param trustResult Trust mechanism evaluation result
  * @returns Formatted summary for client consumption
  */
@@ -274,4 +273,4 @@ export function formatTrustSummary(trustResult: TrustMechanismResult): {
     required_actions: trustResult.verificationRequirements,
     notification_required: trustResult.requiresReceiverNotification,
   };
-} 
+}

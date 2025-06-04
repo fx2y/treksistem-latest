@@ -11,7 +11,7 @@ import type { AppContext } from '../types';
  */
 export const cfAccessAuth = async (c: Context<AppContext>, next: Next) => {
   const userEmailFromHeader = c.req.header('Cf-Access-Authenticated-User-Email');
-  
+
   if (userEmailFromHeader) {
     c.set('currentUserEmail', userEmailFromHeader);
     console.log(`[CF Access] Authenticated user: ${userEmailFromHeader}`);
@@ -22,12 +22,14 @@ export const cfAccessAuth = async (c: Context<AppContext>, next: Next) => {
     console.log(`[CF Access Mock] Using mock user: ${mockEmail}`);
   } else {
     // In production/staging, missing CF Access header indicates misconfiguration
-    console.error('[CF Access] CRITICAL: Missing Cf-Access-Authenticated-User-Email header in non-dev environment');
+    console.error(
+      '[CF Access] CRITICAL: Missing Cf-Access-Authenticated-User-Email header in non-dev environment',
+    );
     throw new HTTPException(401, {
       message: 'Authentication required. Please ensure Cloudflare Access is properly configured.',
     });
   }
-  
+
   await next();
 };
 
@@ -38,7 +40,7 @@ export const cfAccessAuth = async (c: Context<AppContext>, next: Next) => {
  */
 export const mitraAuth = async (c: Context<AppContext>, next: Next) => {
   const userEmail = c.get('currentUserEmail');
-  
+
   if (!userEmail) {
     console.error('[Mitra Auth] No authenticated user email found in context');
     throw new HTTPException(401, {
@@ -48,7 +50,7 @@ export const mitraAuth = async (c: Context<AppContext>, next: Next) => {
 
   try {
     const db = c.get('db');
-    
+
     // Find Mitra record by owner_user_id (which stores the authenticated email)
     const mitraRecord = await db
       .select()
@@ -65,20 +67,21 @@ export const mitraAuth = async (c: Context<AppContext>, next: Next) => {
 
     const mitra = mitraRecord[0];
     c.set('currentMitraId', mitra.id);
-    
-    console.log(`[Mitra Auth] Authorized Mitra: ${mitra.id} (${mitra.name}) for user: ${userEmail}`);
-    
+
+    console.log(
+      `[Mitra Auth] Authorized Mitra: ${mitra.id} (${mitra.name}) for user: ${userEmail}`,
+    );
   } catch (error) {
     if (error instanceof HTTPException) {
       throw error;
     }
-    
+
     console.error('[Mitra Auth] Database error during authorization:', error);
     throw new HTTPException(500, {
       message: 'Authorization check failed due to internal error.',
     });
   }
-  
+
   await next();
 };
 
@@ -101,12 +104,12 @@ export const devBypassAuth = async (c: Context<AppContext>, next: Next) => {
       message: 'Development bypass not allowed in production.',
     });
   }
-  
+
   // Set mock values for development
   c.set('currentUserEmail', 'dev-admin@example.com');
   c.set('currentMitraId', 'dev-mitra-id');
-  
+
   console.log('[Dev Bypass] Using development authentication bypass');
-  
+
   await next();
-}; 
+};

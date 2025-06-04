@@ -7,7 +7,14 @@
   "scripts": {
     "build": "tsc",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0 --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,md}\"",
     "type-check": "tsc --noEmit",
+    "test": "echo 'No tests configured for shared-types'",
+    "test:unit": "echo 'No unit tests configured for shared-types'",
+    "test:integration": "echo 'No integration tests configured for shared-types'",
+    "test:ci": "echo 'No tests configured for shared-types'",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -15,6 +22,7 @@
   },
   "devDependencies": {
     "@treksistem/eslint-config-custom": "workspace:*",
+    "prettier": "^3.2.5",
     "typescript": "^5.4.5"
   }
 } 

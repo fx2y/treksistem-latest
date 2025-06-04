@@ -6,7 +6,7 @@ import { OrderStatusSchema, PhoneNumberSchema } from './order-types';
 /**
  * CUID Schema for consistent ID validation
  */
-export const CuidSchema = z.string().min(1, "ID cannot be empty");
+export const CuidSchema = z.string().min(1, 'ID cannot be empty');
 
 /**
  * Timestamp Schema for consistent timestamp handling
@@ -21,21 +21,25 @@ export const MitraSchema = z.object({
   /** Unique Mitra ID (CUID) */
   id: CuidSchema,
   /** Owner user ID from auth system */
-  ownerUserId: z.string().min(1, "Owner user ID is required"),
+  ownerUserId: z.string().min(1, 'Owner user ID is required'),
   /** Mitra business name */
-  name: z.string().min(1, "Mitra name is required"),
+  name: z.string().min(1, 'Mitra name is required'),
   /** Contact information */
-  contactInfo: z.object({
-    phone: PhoneNumberSchema.optional(),
-    email: z.string().email().optional(),
-    address: z.string().optional(),
-  }).optional(),
+  contactInfo: z
+    .object({
+      phone: PhoneNumberSchema.optional(),
+      email: z.string().email().optional(),
+      address: z.string().optional(),
+    })
+    .optional(),
   /** Business registration details */
-  businessInfo: z.object({
-    registrationNumber: z.string().optional(),
-    businessType: z.enum(['INDIVIDUAL', 'PT', 'CV', 'KOPERASI', 'OTHER']).optional(),
-    description: z.string().optional(),
-  }).optional(),
+  businessInfo: z
+    .object({
+      registrationNumber: z.string().optional(),
+      businessType: z.enum(['INDIVIDUAL', 'PT', 'CV', 'KOPERASI', 'OTHER']).optional(),
+      description: z.string().optional(),
+    })
+    .optional(),
   /** Mitra status */
   isActive: z.boolean().default(true),
   /** Creation timestamp */
@@ -56,9 +60,9 @@ export const ServiceSchema = z.object({
   /** ID of the Mitra offering this service */
   mitraId: CuidSchema,
   /** User-facing service name */
-  name: z.string().min(1, "Service name is required"),
+  name: z.string().min(1, 'Service name is required'),
   /** Core service type identifier */
-  serviceType: z.string().min(1, "Service type is required"),
+  serviceType: z.string().min(1, 'Service type is required'),
   /** Detailed service configuration (JSON) */
   configJson: ServiceConfigBaseSchema,
   /** Whether service is currently active */
@@ -77,9 +81,12 @@ export type Service = z.infer<typeof ServiceSchema>;
  */
 export const CreateServicePayloadSchema = z.object({
   /** User-facing service name */
-  name: z.string().min(3, "Service name must be at least 3 characters").max(100, "Service name must be at most 100 characters"),
+  name: z
+    .string()
+    .min(3, 'Service name must be at least 3 characters')
+    .max(100, 'Service name must be at most 100 characters'),
   /** Core service type identifier */
-  serviceTypeKey: z.string().min(1, "Service type key is required"),
+  serviceTypeKey: z.string().min(1, 'Service type key is required'),
   /** Detailed service configuration */
   configJson: ServiceConfigBaseSchema,
   /** Whether service is currently active */
@@ -98,26 +105,30 @@ export const DriverSchema = z.object({
   /** ID of the Mitra this driver belongs to */
   mitraId: CuidSchema,
   /** Driver identifier (email, phone, or unique ID) */
-  identifier: z.string().min(1, "Driver identifier is required"),
+  identifier: z.string().min(1, 'Driver identifier is required'),
   /** Driver's full name */
-  name: z.string().min(1, "Driver name is required"),
+  name: z.string().min(1, 'Driver name is required'),
   /** Driver contact information */
-  contactInfo: z.object({
-    phone: PhoneNumberSchema.optional(),
-    email: z.string().email().optional(),
-    emergencyContact: PhoneNumberSchema.optional(),
-  }).optional(),
+  contactInfo: z
+    .object({
+      phone: PhoneNumberSchema.optional(),
+      email: z.string().email().optional(),
+      emergencyContact: PhoneNumberSchema.optional(),
+    })
+    .optional(),
   /** Driver configuration (vehicle, capabilities, etc.) */
   configJson: DriverConfigSchema.optional(),
   /** Whether driver is currently active */
   isActive: z.boolean().default(true),
   /** Current location (for active drivers) */
-  currentLocation: z.object({
-    lat: z.number().min(-90).max(90),
-    lon: z.number().min(-180).max(180),
-    accuracy: z.number().min(0).optional(),
-    lastUpdated: TimestampSchema,
-  }).optional(),
+  currentLocation: z
+    .object({
+      lat: z.number().min(-90).max(90),
+      lon: z.number().min(-180).max(180),
+      accuracy: z.number().min(0).optional(),
+      lastUpdated: TimestampSchema,
+    })
+    .optional(),
   /** Driver availability status */
   availability: z.enum(['AVAILABLE', 'BUSY', 'OFFLINE']).default('OFFLINE'),
   /** Creation timestamp */
@@ -157,7 +168,7 @@ export const OrderSchema = z.object({
   /** ID of assigned driver (nullable until assigned) */
   driverId: CuidSchema.nullable().optional(),
   /** Customer identifier */
-  ordererIdentifier: z.string().min(1, "Orderer identifier is required"),
+  ordererIdentifier: z.string().min(1, 'Orderer identifier is required'),
   /** Receiver WhatsApp number for notifications */
   receiverWaNumber: PhoneNumberSchema.optional(),
   /** Order details (JSON) */
@@ -206,7 +217,7 @@ export const OrderEventEntitySchema = z.object({
   /** Event timestamp */
   timestamp: TimestampSchema,
   /** Event type */
-  eventType: z.string().min(1, "Event type is required"),
+  eventType: z.string().min(1, 'Event type is required'),
   /** Event data (JSON) */
   dataJson: z.record(z.any()).optional(),
   /** Actor who triggered the event */
@@ -223,25 +234,31 @@ export type OrderEventEntity = z.infer<typeof OrderEventEntitySchema>;
  */
 export const UserProfileSchema = z.object({
   /** User ID */
-  id: z.string().min(1, "User ID is required"),
+  id: z.string().min(1, 'User ID is required'),
   /** User type */
   userType: z.enum(['CUSTOMER', 'DRIVER', 'MITRA_ADMIN', 'SYSTEM_ADMIN']),
   /** Display name */
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, 'Name is required'),
   /** Contact information */
-  contactInfo: z.object({
-    phone: PhoneNumberSchema.optional(),
-    email: z.string().email().optional(),
-  }).optional(),
+  contactInfo: z
+    .object({
+      phone: PhoneNumberSchema.optional(),
+      email: z.string().email().optional(),
+    })
+    .optional(),
   /** User preferences */
-  preferences: z.object({
-    language: z.enum(['id', 'en']).default('id'),
-    notifications: z.object({
-      email: z.boolean().default(true),
-      sms: z.boolean().default(true),
-      whatsapp: z.boolean().default(true),
-    }).optional(),
-  }).optional(),
+  preferences: z
+    .object({
+      language: z.enum(['id', 'en']).default('id'),
+      notifications: z
+        .object({
+          email: z.boolean().default(true),
+          sms: z.boolean().default(true),
+          whatsapp: z.boolean().default(true),
+        })
+        .optional(),
+    })
+    .optional(),
   /** User status */
   isActive: z.boolean().default(true),
   /** Creation timestamp */
@@ -260,13 +277,13 @@ export const NotificationSchema = z.object({
   /** Notification ID */
   id: CuidSchema,
   /** Recipient user ID */
-  userId: z.string().min(1, "User ID is required"),
+  userId: z.string().min(1, 'User ID is required'),
   /** Notification type */
   type: z.enum(['ORDER_UPDATE', 'DRIVER_ASSIGNMENT', 'PAYMENT_REMINDER', 'SYSTEM_ALERT']),
   /** Notification title */
-  title: z.string().min(1, "Title is required"),
+  title: z.string().min(1, 'Title is required'),
   /** Notification message */
-  message: z.string().min(1, "Message is required"),
+  message: z.string().min(1, 'Message is required'),
   /** Notification data */
   data: z.record(z.any()).optional(),
   /** Delivery channels */
@@ -290,4 +307,4 @@ export type MitraId = string;
 export type ServiceId = string;
 export type DriverId = string;
 export type OrderId = string;
-export type UserId = string; 
+export type UserId = string;

@@ -18,8 +18,11 @@ mitraServiceRoutes.use('*', mitraAuth);
  * Validates the complete service payload including complex configJson
  */
 const createServicePayloadSchema = z.object({
-  name: z.string().min(3, "Service name must be at least 3 characters").max(100, "Service name must be at most 100 characters"),
-  serviceTypeKey: z.string().min(1, "Service type key is required"), // e.g., 'P2P_EXPRESS_MOTOR'
+  name: z
+    .string()
+    .min(3, 'Service name must be at least 3 characters')
+    .max(100, 'Service name must be at most 100 characters'),
+  serviceTypeKey: z.string().min(1, 'Service type key is required'), // e.g., 'P2P_EXPRESS_MOTOR'
   configJson: ServiceConfigBaseSchema, // Use the detailed Zod schema for validation
   isActive: z.boolean().optional().default(true),
 });
@@ -33,30 +36,31 @@ const updateServicePayloadSchema = createServicePayloadSchema.partial();
  * POST /api/mitra/services
  * Create a new service for the authenticated Mitra
  */
-mitraServiceRoutes.post(
-  '/',
-  zValidator('json', createServicePayloadSchema),
-  async (c) => {
-    const payload = c.req.valid('json');
-    const mitraId = c.get('currentMitraId')!;
-    const db = c.get('db');
+mitraServiceRoutes.post('/', zValidator('json', createServicePayloadSchema), async (c) => {
+  const payload = c.req.valid('json');
+  const mitraId = c.get('currentMitraId')!;
+  const db = c.get('db');
 
-    try {
-      const newServiceId = createId();
-      const [createdService] = await db.insert(services).values({
+  try {
+    const newServiceId = createId();
+    const [createdService] = await db
+      .insert(services)
+      .values({
         id: newServiceId,
         mitraId: mitraId,
         name: payload.name,
         serviceTypeKey: payload.serviceTypeKey,
         configJson: payload.configJson as any, // Zod already validated structure
         isActive: payload.isActive,
-      }).returning();
+      })
+      .returning();
 
-      if (!createdService) {
-        throw new Error('Service creation failed after insert.');
-      }
+    if (!createdService) {
+      throw new Error('Service creation failed after insert.');
+    }
 
-      return c.json({
+    return c.json(
+      {
         success: true,
         data: {
           id: createdService.id,
@@ -68,13 +72,14 @@ mitraServiceRoutes.post(
           createdAt: createdService.createdAt,
           updatedAt: createdService.updatedAt,
         },
-      }, 201);
-    } catch (error) {
-      console.error('[Service Creation] Database error:', error);
-      throw new Error('Failed to create service.');
-    }
+      },
+      201,
+    );
+  } catch (error) {
+    console.error('[Service Creation] Database error:', error);
+    throw new Error('Failed to create service.');
   }
-);
+});
 
 /**
  * GET /api/mitra/services
@@ -94,7 +99,7 @@ mitraServiceRoutes.get('/', async (c) => {
     return c.json({
       success: true,
       data: {
-        services: mitraServices.map(service => ({
+        services: mitraServices.map((service) => ({
           id: service.id,
           mitraId: service.mitraId,
           name: service.name,
@@ -124,33 +129,36 @@ mitraServiceRoutes.get('/:serviceId', async (c) => {
 
   // Validate serviceId format
   if (!serviceId || !isCuid(serviceId)) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'INVALID_PARAM',
-        message: 'Invalid service ID format.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PARAM',
+          message: 'Invalid service ID format.',
+        },
       },
-    }, 400);
+      400,
+    );
   }
 
   try {
     const service = await db
       .select()
       .from(services)
-      .where(and(
-        eq(services.id, serviceId),
-        eq(services.mitraId, mitraId)
-      ))
+      .where(and(eq(services.id, serviceId), eq(services.mitraId, mitraId)))
       .limit(1);
 
     if (service.length === 0) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Service not found or not owned by this Mitra.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Service not found or not owned by this Mitra.',
+          },
         },
-      }, 404);
+        404,
+      );
     }
 
     const foundService = service[0];
@@ -178,95 +186,94 @@ mitraServiceRoutes.get('/:serviceId', async (c) => {
  * PUT /api/mitra/services/:serviceId
  * Update a specific service (must belong to authenticated Mitra)
  */
-mitraServiceRoutes.put(
-  '/:serviceId',
-  zValidator('json', updateServicePayloadSchema),
-  async (c) => {
-    const { serviceId } = c.req.param();
-    const payload = c.req.valid('json');
-    const mitraId = c.get('currentMitraId')!;
-    const db = c.get('db');
+mitraServiceRoutes.put('/:serviceId', zValidator('json', updateServicePayloadSchema), async (c) => {
+  const { serviceId } = c.req.param();
+  const payload = c.req.valid('json');
+  const mitraId = c.get('currentMitraId')!;
+  const db = c.get('db');
 
-    // Validate serviceId format
-    if (!serviceId || !isCuid(serviceId)) {
-      return c.json({
+  // Validate serviceId format
+  if (!serviceId || !isCuid(serviceId)) {
+    return c.json(
+      {
         success: false,
         error: {
           code: 'INVALID_PARAM',
           message: 'Invalid service ID format.',
         },
-      }, 400);
-    }
+      },
+      400,
+    );
+  }
 
-    // Check if there's actually data to update
-    if (Object.keys(payload).length === 0) {
-      return c.json({
+  // Check if there's actually data to update
+  if (Object.keys(payload).length === 0) {
+    return c.json(
+      {
         success: false,
         error: {
           code: 'BAD_REQUEST',
           message: 'No update data provided.',
         },
-      }, 400);
-    }
+      },
+      400,
+    );
+  }
 
-    try {
-      // First, verify the service exists and belongs to this Mitra
-      const existingService = await db
-        .select({ id: services.id })
-        .from(services)
-        .where(and(
-          eq(services.id, serviceId),
-          eq(services.mitraId, mitraId)
-        ))
-        .limit(1);
+  try {
+    // First, verify the service exists and belongs to this Mitra
+    const existingService = await db
+      .select({ id: services.id })
+      .from(services)
+      .where(and(eq(services.id, serviceId), eq(services.mitraId, mitraId)))
+      .limit(1);
 
-      if (existingService.length === 0) {
-        return c.json({
+    if (existingService.length === 0) {
+      return c.json(
+        {
           success: false,
           error: {
             code: 'NOT_FOUND',
             message: 'Service not found or not owned by this Mitra.',
           },
-        }, 404);
-      }
-
-      // Prepare update data
-      const updateData: Partial<typeof services.$inferInsert> = { ...payload };
-      updateData.updatedAt = new Date();
-
-      // Perform the update
-      const [updatedService] = await db
-        .update(services)
-        .set(updateData)
-        .where(and(
-          eq(services.id, serviceId),
-          eq(services.mitraId, mitraId)
-        ))
-        .returning();
-
-      if (!updatedService) {
-        throw new Error('Service update failed after validation.');
-      }
-
-      return c.json({
-        success: true,
-        data: {
-          id: updatedService.id,
-          mitraId: updatedService.mitraId,
-          name: updatedService.name,
-          serviceTypeKey: updatedService.serviceTypeKey,
-          configJson: updatedService.configJson,
-          isActive: updatedService.isActive,
-          createdAt: updatedService.createdAt,
-          updatedAt: updatedService.updatedAt,
         },
-      });
-    } catch (error) {
-      console.error('[Service Update] Database error:', error);
-      throw new Error('Failed to update service.');
+        404,
+      );
     }
+
+    // Prepare update data
+    const updateData: Partial<typeof services.$inferInsert> = { ...payload };
+    updateData.updatedAt = new Date();
+
+    // Perform the update
+    const [updatedService] = await db
+      .update(services)
+      .set(updateData)
+      .where(and(eq(services.id, serviceId), eq(services.mitraId, mitraId)))
+      .returning();
+
+    if (!updatedService) {
+      throw new Error('Service update failed after validation.');
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        id: updatedService.id,
+        mitraId: updatedService.mitraId,
+        name: updatedService.name,
+        serviceTypeKey: updatedService.serviceTypeKey,
+        configJson: updatedService.configJson,
+        isActive: updatedService.isActive,
+        createdAt: updatedService.createdAt,
+        updatedAt: updatedService.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('[Service Update] Database error:', error);
+    throw new Error('Failed to update service.');
   }
-);
+});
 
 /**
  * DELETE /api/mitra/services/:serviceId
@@ -279,54 +286,63 @@ mitraServiceRoutes.delete('/:serviceId', async (c) => {
 
   // Validate serviceId format
   if (!serviceId || !isCuid(serviceId)) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'INVALID_PARAM',
-        message: 'Invalid service ID format.',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_PARAM',
+          message: 'Invalid service ID format.',
+        },
       },
-    }, 400);
+      400,
+    );
   }
 
   try {
     const result = await db
       .delete(services)
-      .where(and(
-        eq(services.id, serviceId),
-        eq(services.mitraId, mitraId)
-      ))
+      .where(and(eq(services.id, serviceId), eq(services.mitraId, mitraId)))
       .returning({ id: services.id });
 
     if (result.length === 0) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Service not found or not owned by this Mitra.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Service not found or not owned by this Mitra.',
+          },
         },
-      }, 404);
+        404,
+      );
     }
 
-    return c.json({
-      success: true,
-      message: 'Service deleted successfully.',
-    }, 200);
+    return c.json(
+      {
+        success: true,
+        message: 'Service deleted successfully.',
+      },
+      200,
+    );
   } catch (error: any) {
     console.error('[Service Deletion] Database error:', error);
-    
+
     // Check for foreign key constraint errors if orders are linked
     if (error.message?.includes('FOREIGN KEY constraint failed')) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'CONFLICT',
-          message: 'Cannot delete service. It may have associated orders or driver assignments.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'CONFLICT',
+            message: 'Cannot delete service. It may have associated orders or driver assignments.',
+          },
         },
-      }, 409);
+        409,
+      );
     }
-    
+
     throw new Error('Failed to delete service.');
   }
 });
 
-export default mitraServiceRoutes; 
+export default mitraServiceRoutes;

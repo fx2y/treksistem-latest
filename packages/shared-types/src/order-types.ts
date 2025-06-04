@@ -6,7 +6,7 @@ import { z } from 'zod';
  */
 export const AddressDetailSchema = z.object({
   /** Human-readable address text */
-  text: z.string().min(1, "Address text is required"),
+  text: z.string().min(1, 'Address text is required'),
   /** Latitude coordinate */
   lat: z.number().min(-90).max(90).nullable().optional(),
   /** Longitude coordinate */
@@ -20,10 +20,11 @@ export type AddressDetail = z.infer<typeof AddressDetailSchema>;
 /**
  * Phone Number Schema with Indonesian format validation
  */
-export const PhoneNumberSchema = z.string()
-  .min(10, "Phone number too short")
-  .max(15, "Phone number too long")
-  .regex(/^(\+62|62|0)[0-9]{8,13}$/, "Invalid Indonesian phone number format");
+export const PhoneNumberSchema = z
+  .string()
+  .min(10, 'Phone number too short')
+  .max(15, 'Phone number too long')
+  .regex(/^(\+62|62|0)[0-9]{8,13}$/, 'Invalid Indonesian phone number format');
 
 /**
  * Order Details Base Schema
@@ -54,7 +55,7 @@ export type OrderDetailsBase = z.infer<typeof OrderDetailsBaseSchema>;
  */
 export const OrderPlacementPayloadSchema = z.object({
   /** ID of the service being ordered */
-  serviceId: z.string().min(1, "Service ID is required"),
+  serviceId: z.string().min(1, 'Service ID is required'),
   /** Customer identifier (usually phone number) */
   ordererIdentifier: PhoneNumberSchema,
   /** Receiver WhatsApp number for notifications */
@@ -125,7 +126,7 @@ export const OrderEventDataSchema = z.discriminatedUnion('eventType', [
   }),
   z.object({
     eventType: z.literal('PHOTO_UPLOADED'),
-    photoR2Key: z.string().min(1, "Photo R2 key is required"),
+    photoR2Key: z.string().min(1, 'Photo R2 key is required'),
     photoType: z.enum(['PICKUP_PROOF', 'DELIVERY_PROOF', 'CONDITION_PROOF']),
     caption: z.string().optional(),
   }),
@@ -138,7 +139,7 @@ export const OrderEventDataSchema = z.discriminatedUnion('eventType', [
   }),
   z.object({
     eventType: z.literal('NOTE_ADDED'),
-    note: z.string().min(1, "Note cannot be empty"),
+    note: z.string().min(1, 'Note cannot be empty'),
     author: z.enum(['CUSTOMER', 'DRIVER', 'MITRA', 'SYSTEM']),
   }),
   z.object({
@@ -196,11 +197,13 @@ export const PublicOrderViewSchema = z.object({
   /** Mitra name */
   mitraName: z.string().min(1),
   /** Driver information (when assigned) */
-  driver: z.object({
-    name: z.string().min(1),
-    phoneNumber: PhoneNumberSchema.optional(),
-    vehicleInfo: z.string().optional(),
-  }).optional(),
+  driver: z
+    .object({
+      name: z.string().min(1),
+      phoneNumber: PhoneNumberSchema.optional(),
+      vehicleInfo: z.string().optional(),
+    })
+    .optional(),
   /** Pickup address */
   pickupAddress: AddressDetailSchema,
   /** Dropoff address */
@@ -214,11 +217,15 @@ export const PublicOrderViewSchema = z.object({
   /** Last update time */
   updatedAt: z.number().int().positive().optional(),
   /** Recent events (limited for privacy) */
-  recentEvents: z.array(z.object({
-    timestamp: z.number().int().positive(),
-    eventType: OrderEventTypeSchema,
-    description: z.string(),
-  })).optional(),
+  recentEvents: z
+    .array(
+      z.object({
+        timestamp: z.number().int().positive(),
+        eventType: OrderEventTypeSchema,
+        description: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 export type PublicOrderView = z.infer<typeof PublicOrderViewSchema>;
@@ -302,10 +309,14 @@ export const OrderCostCalculationSchema = z.object({
   /** Total cost */
   totalCost: z.number().min(0),
   /** Cost calculation breakdown */
-  breakdown: z.array(z.object({
-    description: z.string().min(1),
-    amount: z.number(),
-  })).optional(),
+  breakdown: z
+    .array(
+      z.object({
+        description: z.string().min(1),
+        amount: z.number(),
+      }),
+    )
+    .optional(),
 });
 
-export type OrderCostCalculation = z.infer<typeof OrderCostCalculationSchema>; 
+export type OrderCostCalculation = z.infer<typeof OrderCostCalculationSchema>;

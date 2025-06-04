@@ -19,4 +19,4 @@ export type AppContext = {
     driverIsActive?: boolean; // Whether the driver is active
   };
   Bindings: Env;
-}; 
+};

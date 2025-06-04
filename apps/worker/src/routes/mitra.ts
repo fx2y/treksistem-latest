@@ -29,10 +29,10 @@ mitraRoutes.route('/drivers', mitraDriverRoutes);
  */
 mitraRoutes.get('/profile', async (c) => {
   const userEmail = c.get('currentUserEmail')!;
-  
+
   try {
     const db = c.get('db');
-    
+
     const mitraRecord = await db
       .select()
       .from(mitras)
@@ -40,13 +40,16 @@ mitraRoutes.get('/profile', async (c) => {
       .limit(1);
 
     if (mitraRecord.length === 0) {
-      return c.json({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Mitra profile not found for this user.',
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Mitra profile not found for this user.',
+          },
         },
-      }, 404);
+        404,
+      );
     }
 
     const mitra = mitraRecord[0];
@@ -63,7 +66,9 @@ mitraRoutes.get('/profile', async (c) => {
     });
   } catch (error) {
     console.error('[Mitra Profile] Database error:', error);
-    throw new Error(`Failed to fetch Mitra profile: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to fetch Mitra profile: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
   }
 });
 
@@ -72,17 +77,24 @@ mitraRoutes.get('/profile', async (c) => {
  * Create new Mitra profile for the authenticated user
  * Returns 409 if Mitra profile already exists
  */
-mitraRoutes.post('/profile',
-  zValidator('json', z.object({
-    name: z.string().min(3, 'Mitra name must be at least 3 characters').max(100, 'Mitra name must be at most 100 characters'),
-  })),
+mitraRoutes.post(
+  '/profile',
+  zValidator(
+    'json',
+    z.object({
+      name: z
+        .string()
+        .min(3, 'Mitra name must be at least 3 characters')
+        .max(100, 'Mitra name must be at most 100 characters'),
+    }),
+  ),
   async (c) => {
     const { name } = c.req.valid('json');
     const userEmail = c.get('currentUserEmail')!;
-    
+
     try {
       const db = c.get('db');
-      
+
       // Check if profile already exists for this email
       const existingMitra = await db
         .select({ id: mitras.id })
@@ -91,54 +103,65 @@ mitraRoutes.post('/profile',
         .limit(1);
 
       if (existingMitra.length > 0) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'CONFLICT',
-            message: 'Mitra profile already exists for this user.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'CONFLICT',
+              message: 'Mitra profile already exists for this user.',
+            },
           },
-        }, 409);
+          409,
+        );
       }
 
       const newMitraId = createId(); // Generate CUID2
-      const [createdMitra] = await db.insert(mitras).values({
-        id: newMitraId,
-        ownerUserId: userEmail,
-        name: name,
-      }).returning();
+      const [createdMitra] = await db
+        .insert(mitras)
+        .values({
+          id: newMitraId,
+          ownerUserId: userEmail,
+          name: name,
+        })
+        .returning();
 
       if (!createdMitra) {
         throw new Error('Failed to create Mitra profile after insert.');
       }
 
-      return c.json({
-        success: true,
-        data: {
-          id: createdMitra.id,
-          ownerUserId: createdMitra.ownerUserId,
-          name: createdMitra.name,
-          createdAt: createdMitra.createdAt,
-          updatedAt: createdMitra.updatedAt,
+      return c.json(
+        {
+          success: true,
+          data: {
+            id: createdMitra.id,
+            ownerUserId: createdMitra.ownerUserId,
+            name: createdMitra.name,
+            createdAt: createdMitra.createdAt,
+            updatedAt: createdMitra.updatedAt,
+          },
         },
-      }, 201);
-
+        201,
+      );
     } catch (error: any) {
       console.error('[Mitra Profile Creation] Database error:', error);
-      
+
       // Handle unique constraint violation (race condition)
       if (error.message?.includes('UNIQUE constraint failed: mitras.owner_user_id')) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'CONFLICT',
-            message: 'Mitra profile already exists (race condition or constraint failure).',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'CONFLICT',
+              message: 'Mitra profile already exists (race condition or constraint failure).',
+            },
           },
-        }, 409);
+          409,
+        );
       }
-      
+
       throw new Error('Failed to create Mitra profile.');
     }
-  }
+  },
 );
 
 /**
@@ -146,21 +169,28 @@ mitraRoutes.post('/profile',
  * Update current Mitra's profile information
  * Requires existing Mitra profile
  */
-mitraRoutes.put('/profile', 
+mitraRoutes.put(
+  '/profile',
   mitraAuth, // Apply Mitra auth specifically to this route
-  zValidator('json', z.object({
-    name: z.string().min(3, 'Mitra name must be at least 3 characters').max(100, 'Mitra name must be at most 100 characters'),
-  })),
+  zValidator(
+    'json',
+    z.object({
+      name: z
+        .string()
+        .min(3, 'Mitra name must be at least 3 characters')
+        .max(100, 'Mitra name must be at most 100 characters'),
+    }),
+  ),
   async (c) => {
     const mitraId = c.get('currentMitraId')!;
     const { name } = c.req.valid('json');
-    
+
     try {
       const db = c.get('db');
-      
+
       const [updatedMitra] = await db
         .update(mitras)
-        .set({ 
+        .set({
           name,
           updatedAt: new Date(),
         })
@@ -168,13 +198,16 @@ mitraRoutes.put('/profile',
         .returning();
 
       if (!updatedMitra) {
-        return c.json({
-          success: false,
-          error: {
-            code: 'NOT_FOUND',
-            message: 'Mitra profile not found during update.',
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'NOT_FOUND',
+              message: 'Mitra profile not found during update.',
+            },
           },
-        }, 404);
+          404,
+        );
       }
 
       return c.json({
@@ -191,7 +224,7 @@ mitraRoutes.put('/profile',
       console.error('[Mitra Profile Update] Database error:', error);
       throw new Error('Failed to update Mitra profile.');
     }
-  }
+  },
 );
 
 // === Routes Requiring Existing Mitra Profile ===
@@ -203,7 +236,7 @@ mitraRoutes.put('/profile',
 mitraRoutes.get('/auth/test', mitraAuth, (c) => {
   const userEmail = c.get('currentUserEmail')!;
   const mitraId = c.get('currentMitraId')!;
-  
+
   return c.json({
     success: true,
     data: {
@@ -221,4 +254,4 @@ mitraRoutes.get('/auth/test', mitraAuth, (c) => {
   });
 });
 
-export default mitraRoutes; 
+export default mitraRoutes;

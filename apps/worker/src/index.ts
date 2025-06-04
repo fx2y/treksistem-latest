@@ -26,32 +26,35 @@ const app = new Hono<AppContext>();
 // --- Global Middleware ---
 
 // 1. CORS Configuration
-app.use('*', cors({
-  origin: [
-    'http://localhost:5173', // fe-user-public dev
-    'http://localhost:5174', // fe-mitra-admin dev
-    'http://localhost:5175', // fe-driver-view dev
-    'http://localhost:3000', // Alternative dev ports
-    'http://localhost:3001',
-    'http://localhost:3002',
-    // Add production frontend domains here when deployed
-    // 'https://your-production-domain.com',
-  ],
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'Accept',
-    'Origin',
-    // CF Access headers
-    'Cf-Access-Authenticated-User-Email',
-    'Cf-Access-Authenticated-User-Id',
-    // Development mock headers
-    'X-Mock-User-Email',
-  ],
-  credentials: true, // Allow cookies from CF Access
-}));
+app.use(
+  '*',
+  cors({
+    origin: [
+      'http://localhost:5173', // fe-user-public dev
+      'http://localhost:5174', // fe-mitra-admin dev
+      'http://localhost:5175', // fe-driver-view dev
+      'http://localhost:3000', // Alternative dev ports
+      'http://localhost:3001',
+      'http://localhost:3002',
+      // Add production frontend domains here when deployed
+      // 'https://your-production-domain.com',
+    ],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      // CF Access headers
+      'Cf-Access-Authenticated-User-Email',
+      'Cf-Access-Authenticated-User-Id',
+      // Development mock headers
+      'X-Mock-User-Email',
+    ],
+    credentials: true, // Allow cookies from CF Access
+  }),
+);
 
 // 2. Pretty JSON for development readability
 app.use('*', prettyJSON());
@@ -68,11 +71,11 @@ app.use('*', async (c, next) => {
   const start = Date.now();
   const method = c.req.method;
   const url = c.req.url;
-  
+
   console.log(`[${new Date().toISOString()}] ${method} ${url} - START`);
-  
+
   await next();
-  
+
   const duration = Date.now() - start;
   const status = c.res.status;
   console.log(`[${new Date().toISOString()}] ${method} ${url} - ${status} (${duration}ms)`);
@@ -91,7 +94,7 @@ app.use('*', rateLimitingMiddleware());
 app.onError((err, _c) => {
   const method = _c.req.method;
   const url = _c.req.url;
-  
+
   // Default error response structure
   const errorResponse: {
     success: false;
@@ -118,7 +121,7 @@ app.onError((err, _c) => {
   if (err.name === 'HTTPException') {
     statusCode = (err as any).status;
     errorResponse.error.message = err.message;
-    
+
     // Map common HTTP status codes to our error codes
     switch (statusCode) {
       case 400:
@@ -142,7 +145,7 @@ app.onError((err, _c) => {
       default:
         errorResponse.error.code = ERROR_CODES.INTERNAL_ERROR;
     }
-    
+
     Logger.warn(`HTTP Exception: ${method} ${url}`, { status: statusCode, message: err.message });
   }
 
@@ -205,22 +208,25 @@ app.onError((err, _c) => {
 
 // 9. 404 Handler
 app.notFound((_c) => {
-  return _c.json({
-    success: false,
-    error: {
-      code: 'NOT_FOUND',
-      message: 'The requested resource was not found.',
+  return _c.json(
+    {
+      success: false,
+      error: {
+        code: 'NOT_FOUND',
+        message: 'The requested resource was not found.',
+      },
     },
-  }, 404);
+    404,
+  );
 });
 
 // --- Health Check Endpoint ---
 app.get('/api/health', (c) => {
-  return c.json({ 
-    status: 'ok', 
+  return c.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
-    environment: c.env.WORKER_ENV || 'unknown'
+    environment: c.env.WORKER_ENV || 'unknown',
   });
 });
 
@@ -261,18 +267,25 @@ app.get('/api/test/error', (_c) => {
 });
 
 // Test endpoint to verify validation error handling
-app.post('/api/test/validation', zValidator('json', z.object({
-  requiredField: z.string(),
-})), (_c) => {
-  const data = _c.req.valid('json');
-  return _c.json({
-    success: true,
-    data: {
-      message: 'Validation passed',
-      receivedData: data,
-    },
-  });
-});
+app.post(
+  '/api/test/validation',
+  zValidator(
+    'json',
+    z.object({
+      requiredField: z.string(),
+    }),
+  ),
+  (_c) => {
+    const data = _c.req.valid('json');
+    return _c.json({
+      success: true,
+      data: {
+        message: 'Validation passed',
+        receivedData: data,
+      },
+    });
+  },
+);
 
 // Test endpoint to verify CUID2 generation
 app.get('/api/test/cuid', (c) => {
@@ -303,14 +316,58 @@ app.get('/api/test/db', async (c) => {
     });
   } catch (error) {
     console.error('Database test error:', error);
-    return c.json({
-      success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Database connection failed',
-        details: error instanceof Error ? error.message : 'Unknown error',
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'Database connection failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
       },
-    }, 500);
+      500,
+    );
+  }
+});
+
+// Test cleanup endpoint - removes test data for integration testing
+app.delete('/api/test/cleanup', async (c) => {
+  try {
+    const db = c.get('db');
+
+    // Delete test data in reverse dependency order
+    // Note: This is a simplified cleanup - in production you'd want more sophisticated cleanup
+
+    // Delete test mitras (this will cascade to related data due to foreign key constraints)
+    const testEmails = ['mitra-test-1@example.com', 'mitra-test-2@example.com'];
+
+    let deletedCount = 0;
+    for (const email of testEmails) {
+      const result = await db.run(sql`DELETE FROM mitras WHERE owner_user_id = ${email}`);
+      deletedCount += result.meta?.changes || 0;
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        message: 'Test data cleanup completed',
+        deletedMitras: deletedCount,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Test cleanup error:', error);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'CLEANUP_ERROR',
+          message: 'Test data cleanup failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+      },
+      500,
+    );
   }
 });
 
@@ -325,7 +382,7 @@ app.route('/api/test/error-handling', testErrorRoutes);
 
 // --- Future Route Modules (to be implemented in subsequent tasks) ---
 // import driverRoutes from './routes/driver';
-// 
+//
 // app.route('/api/driver', driverRoutes);
 
-export default app; 
+export default app;
